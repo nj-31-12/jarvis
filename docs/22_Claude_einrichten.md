@@ -9,6 +9,9 @@ Diese Anleitung macht aus dem Testmodell ein echtes Gehirn. Es gibt vier Teile:
 - **C:** Schlüssel und Einstellungen eintragen
 - **D:** Erster Test
 
+> **Neu seit 31.10.2026:** JARVIS liegt in `~/JARVIS/jarvis-nj` (nicht mehr in Downloads).
+> Updates: neue ZIP herunterladen, dann `sh ~/JARVIS/jarvis-nj/werkzeuge/update-mac.sh`.
+
 **Regel:** Jeder Befehl wird einzeln ausgeführt. Danach wartest du auf das Ergebnis und meldest es Claude, wenn etwas komisch aussieht.
 
 **Wichtig:** Den API-Schlüssel gibst du **niemandem**, auch nicht Claude oder ChatGPT. Er gehört nur in die Datei `.env` auf deinem Mac.

@@ -11,3 +11,4 @@ damit es nicht wieder passiert. Persönliche Lektionen für JARVIS selbst legt N
 | 31.10.2026 | Alte Terminal-Ausgabe statt des Befehls eingefügt | Vor jedem Befehl `cmd + K`, nur den grauen Befehlskasten kopieren. |
 | 31.10.2026 | Ein Freigabe-Fenster bei GitHub zeigte „Authorized“, nicht „Installed“ | Für Schreibzugriff muss die Claude-App unter „Installed GitHub Apps“ stehen. |
 | 31.10.2026 | Alte Daten verlangten beim Start eine Umstellung (`action_meta`) | Ist gewollt (keine stille Umstellung). Mit „ja“ bestätigen, vorher wird gesichert. |
+| 31.10.2026 | Update-ZIP fehlte bzw. hieß „(1).zip“, Downloads unübersichtlich | Ordnung in `~/JARVIS` (jarvis-nj, rueckfall, updates, archiv). Updates nur noch mit `werkzeuge/update-mac.sh`, das die neueste ZIP selbst findet. |
