@@ -379,3 +379,22 @@ class SicherungOhneGeheimnisse(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UmstellungNurEinmal(unittest.TestCase):
+    def test_nach_ja_fragt_der_start_nicht_erneut(self):
+        from jarvis import server
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, True)
+        (tmp / "data").mkdir()
+        con = sqlite3.connect(str(tmp / "data" / "actions.db"))
+        con.execute("CREATE TABLE actions (id TEXT PRIMARY KEY, status TEXT)")
+        con.execute("INSERT INTO actions VALUES ('a1', 'offen')")
+        con.commit(); con.close()
+        cfg = {"data_dir": str(tmp / "data")}
+        self.assertTrue(server.pending_upgrades(cfg))
+        server.apply_upgrades(cfg)
+        self.assertEqual(server.pending_upgrades(cfg), [])
+        con = sqlite3.connect(str(tmp / "data" / "actions.db"))
+        self.assertEqual(con.execute("SELECT id, status FROM actions").fetchall(), [("a1", "offen")])  # nichts verändert
+        con.close()

@@ -17,6 +17,7 @@ Der aktuelle Stand steht in der Datei `STAND.txt` im JARVIS-Ordner.
 | 10 | 30.10.2026 | Stabil, ohne KI (Rückfall) | jarvis-v5-2 | RUECKFALL_Stabil-ohne-KI |
 | 11 | 31.10.2026 | KI-Gehirn Claude, Kostenbremse | jarvis-version5-3 | archiv/10_Zwischenstaende |
 | 12 | 31.10.2026 | HUD-Ansicht mit Weltkugel | jarvis-version5-3 | archiv/10_Zwischenstaende |
-| 13 | 31.10.2026 | 3D-Gehirn, Lektionen, Update-Werkzeug | jarvis-aktuell | **jarvis-nj (aktiv)** |
+| 13 | 31.10.2026 | 3D-Gehirn, Lektionen, Update-Werkzeug | jarvis-aktuell | updates/ |
+| 14 | 01.11.2026 | Startfrage „umstellen?“ kommt nur noch einmal | jarvis-aktuell | **jarvis-nj (aktiv)** |
 
 Neue Stände: Nummer +1, Eintrag hier und in `STAND.txt`.

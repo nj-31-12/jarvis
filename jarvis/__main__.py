@@ -171,7 +171,7 @@ def web_password() -> None:
 
 def start_web() -> None:
     from pathlib import Path
-    from .server import instance_lock, make_backup, pending_upgrades, preflight
+    from .server import apply_upgrades, instance_lock, make_backup, pending_upgrades, preflight
     from .chat import pending_migration
     cfg = load_config()
     chat_db = Path(cfg["data_dir"]) / "chat.db"
@@ -188,6 +188,7 @@ def start_web() -> None:
             print("Abgebrochen. Es wurde nichts verändert.")
             return
         print(f"✅ Sicherung vor der Umstellung: {make_backup(cfg)}")
+        apply_upgrades(cfg)                       # sofort ergänzen, damit die Frage nur einmal kommt
     if not _auth_store().is_configured():
         print("Bevor die Oberfläche startet, legen wir ein Passwort fest.\n")
         web_password()

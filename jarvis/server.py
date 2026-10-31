@@ -244,6 +244,19 @@ def pending_upgrades(cfg: dict) -> list:
     return out
 
 
+def apply_upgrades(cfg: dict) -> None:
+    """Version 5.3: Nach Noahs „ja“ und der Sicherung die Ergänzungen SOFORT anlegen. Vorher entstand action_meta
+    erst bei der ersten Freigabe – bis dahin fragte jeder Start erneut. Nur ergänzen, nie löschen oder ändern."""
+    actions = Path(cfg["data_dir"]) / "actions.db"
+    if actions.exists() and not _has_table(actions, "action_meta"):
+        con = sqlite3.connect(str(actions))
+        try:
+            con.execute("CREATE TABLE IF NOT EXISTS action_meta (id TEXT PRIMARY KEY, meta TEXT, replaces TEXT)")
+            con.commit()
+        finally:
+            con.close()
+
+
 # ---------------------------------------------------------------------- Sicherung
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
