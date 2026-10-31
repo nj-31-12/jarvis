@@ -22,6 +22,8 @@ from pathlib import Path
 from typing import Callable
 from urllib.parse import parse_qs, urlsplit
 
+from .web_brain import BrainPages
+
 from . import web_auth as wa
 from .chat import MAX_MESSAGE_CHARS, ROLE_JARVIS, ROLE_SYSTEM, ROLE_USER, ChatError, ChatService, ChatStore
 from .markdown_safe import render as render_markdown
@@ -427,7 +429,7 @@ class TaskPages:
         return redirect("/aufgaben")
 
 
-class WebApp(ApprovalPages, SkillPages, TaskPages):
+class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
     def __init__(self, cfg: dict, auth: wa.AuthStore, jarvis=None, clock: Callable[[], float] = time.time):
         self.cfg = cfg
         self.port = int(cfg["web"]["port"])
@@ -515,6 +517,21 @@ class WebApp(ApprovalPages, SkillPages, TaskPages):
             if not session:
                 return redirect("/login")
             return self._home(session)
+        if path in ("/gehirn", "/gehirn/notiz"):
+            if not session:
+                return redirect("/login")
+            if self.jarvis is None:
+                return Response(503, self._page("Second Brain", "<p>Nicht verfügbar.</p>", session=session))
+            if path == "/gehirn" and method == "GET":
+                inner = self._brain_page(session, html.escape(session.csrf))
+                return Response(200, self._page("Second Brain", inner, body_class="wide", session=session,
+                                                active="gehirn"))
+            if path == "/gehirn/notiz" and method == "POST":
+                if not wa.check_csrf(session, field("csrf")):
+                    return Response(403, "Ungültiges Prüfzeichen.", "text/plain; charset=utf-8")
+                self._brain_capture(session, field("text"))
+                return redirect("/gehirn")
+            return Response(405, "Methode nicht erlaubt.", "text/plain; charset=utf-8")
         if path.startswith("/wissen"):
             if not session:
                 return redirect("/login")
@@ -627,7 +644,8 @@ class WebApp(ApprovalPages, SkillPages, TaskPages):
               active: str = "") -> str:
         nav = ""
         if session is not None:
-            links = [("/", "Übersicht", "home"), ("/chat", "Chat", "chat"), ("/wissen", "Wissen", "wissen"),
+            links = [("/", "Übersicht", "home"), ("/chat", "Chat", "chat"), ("/gehirn", "Second Brain", "gehirn"),
+                     ("/wissen", "Wissen", "wissen"),
                      ("/freigaben", "Freigaben", "freigaben"), ("/skills", "Skills", "skills"),
                      ("/aufgaben", "Aufgaben", "aufgaben")]
             nav = ("<nav class=\"nav\" aria-label=\"Hauptmenü\"><span class=\"brand\">" + hud_reactor() + "JARVIS</span>"
@@ -690,10 +708,12 @@ class WebApp(ApprovalPages, SkillPages, TaskPages):
         model = getattr(j.llm, "model", None) if j else None
         core = ("Testmodus (kein echtes Modell)" if model is None or getattr(model, "is_test_mode", True)
                 else str(getattr(model, "name", "?")))
+        notes = j.kb.stats().get("visible", 0) if j else 0
+        tasks = len(j.kb.open_checkboxes(limit=99)) if j else 0
         hour = time.localtime().tm_hour
         greet = "Guten Morgen" if 5 <= hour < 11 else "Guten Tag" if hour < 18 else "Guten Abend"
         inner = f"""<header class="hud-hero">
-<div class="hud-globe">{hud_globe()}</div>
+<div class="hud-globe orb"><div class="orb-ring r1"></div><div class="orb-ring r2"></div><div class="orb-ring r3"></div>{hud_globe()}</div>
 <div class="hud-read"><p class="eyebrow"><span class="live"></span>JARVIS · Systeme online · {greet}</p>
 <h1>Willkommen zurück.</h1>
 <dl class="hud-stats">
@@ -704,13 +724,13 @@ class WebApp(ApprovalPages, SkillPages, TaskPages):
 </dl>
 <a class="button" href="/chat">Chat öffnen</a></div>
 </header>
-<section class="pills" aria-label="Status">
-<span class="pill {'alert' if kill else 'ok'}">Notaus <b>{'AKTIV' if kill else 'aus'}</b></span>
-<a class="pill {'warn' if pending else ''}" href="/freigaben">Offene Freigaben <b>{pending}</b></a>
-<span class="pill">Budget <b>{budget}</b></span>
-<span class="pill">Sitzung <b>{html.escape(session.username)}</b></span>
-{withheld_pill}
+<section class="tiles" aria-label="Schnellzugriff">
+<a class="tile" href="/gehirn"><span class="t-icon">◎</span><b>Second Brain</b><span>{notes} Notizen · {tasks} Aufgaben</span></a>
+<a class="tile" href="/chat"><span class="t-icon">◈</span><b>Chat</b><span>Mit JARVIS sprechen</span></a>
+<a class="tile {'warn' if pending else ''}" href="/freigaben"><span class="t-icon">◆</span><b>Freigaben</b><span>{pending} offen</span></a>
+<a class="tile" href="/aufgaben"><span class="t-icon">◇</span><b>Aufgaben</b><span>Planer &amp; Läufe</span></a>
 </section>
+{('<section class="pills">' + withheld_pill + '</section>') if withheld_pill else ''}
 <section class="panel"><h2>Letzte Meldungen</h2><ul class="list">{items}</ul></section>
 <section class="panel muted"><h2>Freigabezentrale</h2><p>Alles, was JARVIS nach außen tun oder verändern möchte, wartet unter <a href="/freigaben">Freigaben</a> auf deine Entscheidung. Nichts wird automatisch genehmigt.</p></section>
 <section class="panel danger"><h2>Notabschaltung</h2><p>Stoppt sofort alle Aktionen. Aufheben nur im Terminal mit <code>python3 -m jarvis resume</code>.</p>
