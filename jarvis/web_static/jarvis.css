@@ -265,3 +265,65 @@ pointer-events:none;text-shadow:0 0 6px #000}
 .b3-legend .k-aufgabe::before{background:#ffd166}.b3-legend .k-lektion::before{background:#c792ea}
 .b3-legend .k-recherche::before{background:#ff9f43}.b3-legend .k-thema::before{background:#7cf0c5}
 .lessons ul{margin-top:12px}
+/* ======================================================================
+   Version 5.3 – Chat als Portal und Reportage
+   ====================================================================== */
+/* Portal beim Betreten: Lichtstrahlen, Ringe, dann „hineintauchen“ */
+.portal{position:fixed;inset:0;z-index:60;pointer-events:none;display:grid;place-items:center;overflow:hidden;
+background:radial-gradient(circle at 50% 50%,rgba(79,227,255,.25),rgba(5,11,18,.97) 55%);animation:portal-bg 1.6s ease-in forwards}
+.p-rays{position:absolute;width:160vmax;height:160vmax;background:repeating-conic-gradient(from 0deg,rgba(79,227,255,.22) 0 2deg,transparent 2deg 9deg);
+border-radius:50%;animation:rays 1.6s cubic-bezier(.5,0,.2,1) forwards}
+.p-ring{position:absolute;width:30vmin;height:30vmin;border-radius:50%;border:2px solid rgba(79,227,255,.9);
+box-shadow:0 0 30px rgba(79,227,255,.6),inset 0 0 30px rgba(79,227,255,.4);animation:ring-out 1.4s cubic-bezier(.3,0,.2,1) forwards}
+.p-ring.b{border-color:rgba(255,159,67,.8);animation-delay:.12s;border-style:dashed}
+.p-ring.c{animation-delay:.24s;border-width:1px}
+.p-core{position:absolute;width:6vmin;height:6vmin;border-radius:50%;background:#e8fbff;box-shadow:0 0 60px 20px rgba(79,227,255,.8);animation:core-flash 1.2s ease-out forwards}
+@keyframes portal-bg{0%{opacity:1}70%{opacity:1}100%{opacity:0}}
+@keyframes rays{from{transform:rotate(0deg) scale(.2);opacity:0}30%{opacity:1}to{transform:rotate(140deg) scale(1.4);opacity:0}}
+@keyframes ring-out{from{transform:scale(.1);opacity:0}25%{opacity:1}to{transform:scale(7);opacity:0}}
+@keyframes core-flash{0%{transform:scale(.2);opacity:0}30%{transform:scale(1.4);opacity:1}100%{transform:scale(30);opacity:0}}
+body.portal-on .wrap{animation:dive 1.5s cubic-bezier(.2,.7,.2,1) both}
+@keyframes dive{0%,35%{opacity:0;transform:perspective(900px) translateZ(-500px) rotateX(10deg)}100%{opacity:1;transform:none}}
+
+/* Reportage-Stil: Frage als Titel, Antwort als Erzähler mit Bauchbinde */
+.chat-doc .msg-du{background:transparent;border:0;border-left:3px solid var(--accent2);border-radius:0;max-width:100%;align-self:stretch;padding:4px 0 4px 14px}
+.chat-doc .msg-du .meta b{color:var(--accent2);font-family:var(--mono);font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;font-weight:400}
+.chat-doc .msg-du .body{font-size:1.25rem;line-height:1.35;font-weight:600;color:var(--fg)}
+.chat-doc .msg-jarvis{max-width:100%;background:linear-gradient(180deg,rgba(79,227,255,.07),rgba(10,24,36,.88) 40%)}
+.chat-doc .msg-jarvis .meta{border-bottom:1px solid rgba(79,227,255,.25);padding-bottom:6px;margin-bottom:10px}
+.chat-doc .msg-jarvis .meta b{font-family:var(--mono);font-size:.72rem;letter-spacing:.18em;text-transform:uppercase}
+.chat-doc .msg-jarvis .body{font-size:1.03rem;line-height:1.65}
+.chat-doc .msg-jarvis .body hr{border:0;border-top:1px dashed rgba(79,227,255,.3);margin:14px 0 8px}
+/* Neueste Antwort erscheint Zeile für Zeile wie ein Erzähltext */
+.msg.fresh .body > *{animation:line-in .7s ease-out both}
+.msg.fresh .body > *:nth-child(2){animation-delay:.25s}.msg.fresh .body > *:nth-child(3){animation-delay:.5s}
+.msg.fresh .body > *:nth-child(4){animation-delay:.75s}.msg.fresh .body > *:nth-child(5){animation-delay:1s}
+.msg.fresh .body > *:nth-child(6){animation-delay:1.25s}.msg.fresh .body > *:nth-child(7){animation-delay:1.5s}
+.msg.fresh .body > *:nth-child(n+8){animation-delay:1.75s}
+@keyframes line-in{from{opacity:0;transform:translateY(8px);filter:blur(2px)}to{opacity:1;transform:none;filter:none}}
+
+/* Vorlesen und Sprechanzeige */
+button.speak{margin:0 0 0 auto;padding:3px 10px;font-size:.78rem}
+.autovoice{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--muted);margin-left:auto}
+.autovoice input{width:auto}
+.hud-chat .autovoice + form{margin-left:12px}
+.voicebar{display:inline-flex;gap:3px;align-items:flex-end;height:18px;margin-left:12px;vertical-align:middle;opacity:.25;transition:opacity .3s}
+.voicebar i{display:block;width:3px;height:4px;background:var(--accent);border-radius:2px}
+body.speaking .voicebar{opacity:1}
+body.speaking .voicebar i{animation:bar .9s ease-in-out infinite}
+.voicebar i:nth-child(2){animation-delay:-.2s}.voicebar i:nth-child(3){animation-delay:-.4s}.voicebar i:nth-child(4){animation-delay:-.1s}
+.voicebar i:nth-child(5){animation-delay:-.6s}.voicebar i:nth-child(6){animation-delay:-.3s}.voicebar i:nth-child(7){animation-delay:-.5s}
+@keyframes bar{50%{height:18px}}
+body.speaking .hud-mini .globe{animation:talk .5s ease-in-out infinite}
+@keyframes talk{50%{transform:scale(1.06)}}
+
+/* JARVIS denkt nach (zwischen Senden und Antwort) */
+.thinking{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:55;display:flex;align-items:center;gap:12px;
+padding:10px 18px;border-radius:999px;background:rgba(5,16,26,.94);border:1px solid var(--accent);box-shadow:0 0 30px var(--glow)}
+.thinking[hidden]{display:none}
+.thinking p{margin:0;font-family:var(--mono);font-size:.8rem;letter-spacing:.08em;color:var(--fg)}
+.thinking p span{color:var(--muted)}
+.t-orb{position:relative;width:26px;height:26px}
+.t-orb i{position:absolute;inset:0;border-radius:50%;border:2px solid transparent;border-top-color:var(--accent);animation:spin 1s linear infinite}
+.t-orb i:nth-child(2){inset:4px;border-top-color:var(--accent2);animation-duration:1.4s;animation-direction:reverse}
+.t-orb i:nth-child(3){inset:9px;background:var(--accent);border:0;animation:breathe 1.2s ease-in-out infinite}

@@ -57,6 +57,11 @@ def hud_globe(css_class: str = "globe", label: str = "Drehende Weltkugel") -> st
             '</svg>')
 
 
+# Portal beim Betreten des Chats: liegt AUSSERHALB von <main>, damit es den ganzen Bildschirm füllt
+PORTAL = ('<div class="portal" aria-hidden="true"><div class="p-rays"></div><div class="p-ring a"></div>'
+          '<div class="p-ring b"></div><div class="p-ring c"></div><div class="p-core"></div></div>')
+
+
 def hud_reactor() -> str:
     return ('<svg class="reactor" viewBox="-12 -12 24 24" aria-hidden="true">'
             '<circle class="r-core" r="4"/><g class="r-spin"><circle class="r-ring" r="9"/></g></svg>')
@@ -569,6 +574,11 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
                                                 if created else "Alle Bereiche haben bereits ein Profil.")
                     return redirect("/wissen#profile")
             return Response(404, self._page("Nicht gefunden", "<p>Diese Seite gibt es nicht.</p>", session=session))
+        if path == "/chat/stimme" and method == "GET":
+            if not session:
+                return redirect("/login")
+            query = parse_qs(urlsplit(target).query, max_num_fields=3)
+            return self._chat_voice((query.get("id") or [""])[0])
         if path in ("/chat", "/chat/neu", "/chat/schwaerzen"):
             if not session:
                 return redirect("/login")
@@ -576,7 +586,8 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
                 return Response(503, self._page("Chat", "<p>Der Chat ist nicht verfügbar.</p>", session=session))
             query = parse_qs(urlsplit(target).query, max_num_fields=5)
             if path == "/chat" and method == "GET":
-                return self._chat_page(session, (query.get("g") or [""])[0])
+                return self._chat_page(session, (query.get("g") or [""])[0],
+                                       portal=(query.get("portal") or [""])[0] == "1")
             if method == "POST":
                 if not wa.check_csrf(session, field("csrf")):
                     return Response(403, "Ungültiges Prüfzeichen.", "text/plain; charset=utf-8")
@@ -644,7 +655,8 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
 
     # ------------------------------------------------------------------ Seiten
     def _static(self, name: str) -> Response:
-        allowed = {"jarvis.css": "text/css; charset=utf-8", "brain.js": "text/javascript; charset=utf-8"}
+        allowed = {"jarvis.css": "text/css; charset=utf-8", "brain.js": "text/javascript; charset=utf-8",
+                   "chat.js": "text/javascript; charset=utf-8"}
         if name not in allowed:
             return Response(404, "Nicht gefunden.", "text/plain; charset=utf-8")
         resp = Response(200, (STATIC_DIR / name).read_bytes(), allowed[name])
@@ -654,7 +666,7 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
               active: str = "") -> str:
         nav = ""
         if session is not None:
-            links = [("/", "Übersicht", "home"), ("/chat", "Chat", "chat"), ("/gehirn", "Second Brain", "gehirn"),
+            links = [("/", "Übersicht", "home"), ("/chat?portal=1", "Chat", "chat"), ("/gehirn", "Second Brain", "gehirn"),
                      ("/wissen", "Wissen", "wissen"),
                      ("/freigaben", "Freigaben", "freigaben"), ("/skills", "Skills", "skills"),
                      ("/aufgaben", "Aufgaben", "aufgaben")]
@@ -666,7 +678,8 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
         return (f"<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\">"
                 f"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
                 f"<title>{html.escape(title)} · JARVIS</title><link rel=\"stylesheet\" href=\"/static/jarvis.css\">"
-                f"</head><body class=\"{body_class}\">{nav}<main class=\"wrap\">{inner}</main></body></html>")
+                f"</head><body class=\"{body_class}\">{PORTAL if 'portal-on' in body_class.split() else ''}"
+                f"{nav}<main class=\"wrap\">{inner}</main></body></html>")
 
     def _login_page(self, error: str = "") -> Response:
         if not self.auth.is_configured():
@@ -732,11 +745,11 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
 <div><dt>Freigaben offen</dt><dd>{pending}</dd></div>
 <div><dt>Notaus</dt><dd class="{'alert' if kill else 'ok'}">{'AKTIV' if kill else 'bereit · aus'}</dd></div>
 </dl>
-<a class="button" href="/chat">Chat öffnen</a></div>
+<a class="button" href="/chat?portal=1">Chat öffnen</a></div>
 </header>
 <section class="tiles" aria-label="Schnellzugriff">
 <a class="tile" href="/gehirn"><span class="t-icon">◎</span><b>Second Brain</b><span>{notes} Notizen · {tasks} Aufgaben</span></a>
-<a class="tile" href="/chat"><span class="t-icon">◈</span><b>Chat</b><span>Mit JARVIS sprechen</span></a>
+<a class="tile" href="/chat?portal=1"><span class="t-icon">◈</span><b>Chat</b><span>Mit JARVIS sprechen</span></a>
 <a class="tile {'warn' if pending else ''}" href="/freigaben"><span class="t-icon">◆</span><b>Freigaben</b><span>{pending} offen</span></a>
 <a class="tile" href="/aufgaben"><span class="t-icon">◇</span><b>Aufgaben</b><span>Planer &amp; Läufe</span></a>
 </section>
@@ -934,7 +947,26 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
             session.data["flash_ok"] = "Antwort endgültig geschwärzt."
         return redirect(target)
 
-    def _chat_page(self, session: wa.Session, requested: str) -> Response:
+    def _chat_voice(self, msg_id: str) -> Response:
+        """Version 5.3: JARVIS-Antwort als Sprache (Mac-Stimme + Effekt, lokal). Nur eigene, sichtbare Antworten."""
+        from .chat import strip_check
+        from .speech import speakable
+        from .voice_fx import VoiceUnavailable, jarvis_voice
+        if self.chat is None or self.jarvis is None or not str(msg_id).isdigit() or len(str(msg_id)) > 9:
+            return Response(404, "Nicht gefunden.", "text/plain; charset=utf-8")
+        if self.jarvis.kill.is_active():
+            return Response(423, "Notabschaltung aktiv.", "text/plain; charset=utf-8")
+        m = self.chat.store.get_message(int(msg_id))
+        if not m or m["role"] != ROLE_JARVIS or self.chat.withheld_reason(m) is not None:
+            return Response(404, "Nicht gefunden.", "text/plain; charset=utf-8")
+        try:
+            audio = jarvis_voice(speakable(strip_check(m["text"]), max_chars=2500))
+        except VoiceUnavailable as exc:
+            return Response(501, str(exc), "text/plain; charset=utf-8")
+        self.audit.write("voice_spoken", msg=int(msg_id), bytes=len(audio))
+        return Response(200, audio, "audio/wav")
+
+    def _chat_page(self, session: wa.Session, requested: str, portal: bool = False) -> Response:
         store = self.chat.store
         if requested:
             if not store.exists(requested):     # auch Schutz gegen ../-Tricks: nur 12 Hex-Zeichen erlaubt
@@ -971,8 +1003,14 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
                     body = (f"<p class=\"withheld\"><b>Zurückgehalten</b> ({html.escape(reason)}). Nur für dich sichtbar, "
                             f"weil du entsperrt hast.</p>" + body + self._redact_form(session, m["id"]))
             body += self._sources_html(m.get("sources") or [])
-            parts.append(f"<article class=\"msg msg-{html.escape(m['role'])}\"><p class=\"meta\">"
-                         f"<b>{labels.get(m['role'], 'System')}</b> <span class=\"mono\">{when}</span>{badge}</p>"
+            fresh = (m is msgs[-1] and m["role"] == ROLE_JARVIS and time.time() - m["ts"] < 120)
+            speak = (f"<button class=\"speak ghost\" type=\"button\" data-id=\"{int(m['id'])}\" hidden "
+                     f"aria-label=\"Antwort vorlesen\">🔊 Vorlesen</button>"
+                     if m["role"] == ROLE_JARVIS and not (reason and not self._private_unlocked(session)) else "")
+            label = {ROLE_USER: "Frage", ROLE_JARVIS: "JARVIS · Antwort"}.get(m["role"], labels.get(m["role"], "System"))
+            parts.append(f"<article class=\"msg msg-{html.escape(m['role'])}{' fresh' if fresh else ''}\" "
+                         f"data-id=\"{int(m['id'])}\"><p class=\"meta\">"
+                         f"<b>{label}</b> <span class=\"mono\">{when}</span>{badge}{speak}</p>"
                          f"<div class=\"body\">{body}</div></article>")
         if not parts:
             parts.append("<p class=\"empty\">Noch keine Nachrichten. Schreib JARVIS etwas, zum Beispiel "
@@ -995,7 +1033,9 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
             banner += (f"<div class=\"notice\"><p><b>{withheld} Antwort(en) zurückgehalten</b>, weil sich ihre Quellen geändert "
                        f"haben. Zum Ansehen oder endgültigen Schwärzen mit Passwort bestätigen.</p>"
                        f"{self._unlock_box(session, '/chat?g=' + conv)}</div>")
-        inner = f"""<header class="top hud-chat"><div class="hud-mini">{hud_globe("globe mini", "JARVIS aktiv")}</div><div class="hud-title"><p class="eyebrow"><span class="live"></span>JARVIS · Chat</p><h1>Gespräch</h1></div>
+        inner = f"""<header class="top hud-chat"><div class="hud-mini">{hud_globe("globe mini", "JARVIS aktiv")}</div><div class="hud-title"><p class="eyebrow"><span class="live"></span>JARVIS · Live</p><h1>Frag JARVIS</h1>
+<div class="voicebar" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+<label class="autovoice" hidden><input type="checkbox" id="autovoice"> Antworten automatisch sprechen</label>
 <form method="post" action="/chat/neu"><input type="hidden" name="csrf" value="{csrf}"><button class="ghost" type="submit">Neues Gespräch</button></form></header>
 {banner}
 <div class="chat-layout">
@@ -1009,7 +1049,11 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
 </form></section>
 <aside class="panel convs" aria-label="Letzte Gespräche"><h2>Letzte Gespräche</h2><ul class="list">{side}</ul></aside>
 </div>"""
-        return Response(200, self._page("Chat", inner, body_class="wide", session=session, active="chat"))
+        inner += ('<div class="thinking" aria-live="polite" hidden><div class="t-orb"><i></i><i></i><i></i></div>'
+                  '<p>JARVIS denkt nach <span>· Antwort wird geprüft</span></p></div>'
+                  '<script src="/static/chat.js" defer></script>')
+        return Response(200, self._page("Chat", inner, body_class="wide chat-doc" + (" portal-on" if portal else ""),
+                                        session=session, active="chat"))
 
 
 # ---------------------------------------------------------------------- Server
