@@ -35,6 +35,29 @@ LOCAL_HOSTS = ("127.0.0.1", "localhost", "::1")
 CURRENT = ' aria-current="page"'   # als Konstante: Python 3.8 erlaubt keine \ in f-String-Ausdrücken
 
 
+
+# ---------------------------------------------------------------------- HUD-Grafiken (Version 5.3)
+# Reines SVG, animiert nur über jarvis.css (kein JavaScript, keine externen Dateien – passt zur strengen CSP).
+def hud_globe(css_class: str = "globe", label: str = "Drehende Weltkugel") -> str:
+    lats = "".join(f'<ellipse class="g-lat" cx="0" cy="{y}" rx="{rx}" ry="{ry}"/>'
+                   for y, rx, ry in ((0, 80, 7), (-40, 69, 6), (40, 69, 6), (-69, 40, 3.5), (69, 40, 3.5)))
+    mers = "".join(f'<ellipse class="g-mer m{i}" cx="0" cy="0" rx="80" ry="80"/>' for i in range(1, 7))
+    return (f'<svg class="{html.escape(css_class)}" viewBox="-120 -120 240 240" role="img" aria-label="{html.escape(label)}">'
+            '<circle class="g-glow" r="86"/>'
+            '<g class="g-ring g-ring-a"><circle class="g-dash" r="110"/></g>'
+            '<g class="g-ring g-ring-b"><circle class="g-dash2" r="100"/></g>'
+            '<g class="g-ticks"><circle class="g-tick" r="116"/></g>'
+            '<circle class="g-sphere" r="80"/>' + lats + mers +
+            '<g class="g-orbit"><circle class="g-path" r="100"/><circle class="g-dot" cx="0" cy="-100" r="3"/></g>'
+            '<g class="g-orbit g-orbit-b"><circle class="g-path" r="110"/><circle class="g-dot" cx="0" cy="110" r="2.2"/></g>'
+            '<line class="g-scan" x1="-80" y1="0" x2="80" y2="0"/>'
+            '</svg>')
+
+
+def hud_reactor() -> str:
+    return ('<svg class="reactor" viewBox="-12 -12 24 24" aria-hidden="true">'
+            '<circle class="r-core" r="4"/><g class="r-spin"><circle class="r-ring" r="9"/></g></svg>')
+
 class Response:
     def __init__(self, status: int, body: str | bytes = b"", content_type: str = "text/html; charset=utf-8",
                  headers: list | None = None):
@@ -607,7 +630,7 @@ class WebApp(ApprovalPages, SkillPages, TaskPages):
             links = [("/", "Übersicht", "home"), ("/chat", "Chat", "chat"), ("/wissen", "Wissen", "wissen"),
                      ("/freigaben", "Freigaben", "freigaben"), ("/skills", "Skills", "skills"),
                      ("/aufgaben", "Aufgaben", "aufgaben")]
-            nav = ("<nav class=\"nav\" aria-label=\"Hauptmenü\"><span class=\"brand\"><span class=\"dot\"></span>JARVIS</span>"
+            nav = ("<nav class=\"nav\" aria-label=\"Hauptmenü\"><span class=\"brand\">" + hud_reactor() + "JARVIS</span>"
                    + "".join(f"<a href=\"{href}\"{CURRENT if key == active else ''}>{label}</a>"
                              for href, label, key in links)
                    + f"<form method=\"post\" action=\"/logout\"><input type=\"hidden\" name=\"csrf\" "
@@ -664,10 +687,22 @@ class WebApp(ApprovalPages, SkillPages, TaskPages):
         n_withheld = len(self.chat.affected_messages()) if self.chat else 0
         withheld_pill = (f"<a class=\"pill warn\" href=\"/chat\">Zurückgehaltene Chat-Antworten <b>{n_withheld}</b></a>"
                          if n_withheld else "")
-        inner = f"""<header class="top">
-<div><p class="eyebrow">JARVIS · Systemübersicht</p>
-<h1>Willkommen zurück.</h1></div>
-<a class="button" href="/chat">Chat öffnen</a>
+        model = getattr(j.llm, "model", None) if j else None
+        core = ("Testmodus (kein echtes Modell)" if model is None or getattr(model, "is_test_mode", True)
+                else str(getattr(model, "name", "?")))
+        hour = time.localtime().tm_hour
+        greet = "Guten Morgen" if 5 <= hour < 11 else "Guten Tag" if hour < 18 else "Guten Abend"
+        inner = f"""<header class="hud-hero">
+<div class="hud-globe">{hud_globe()}</div>
+<div class="hud-read"><p class="eyebrow"><span class="live"></span>JARVIS · Systeme online · {greet}</p>
+<h1>Willkommen zurück.</h1>
+<dl class="hud-stats">
+<div><dt>KI-Kern</dt><dd>{html.escape(core)}</dd></div>
+<div><dt>Budget</dt><dd>{budget}</dd></div>
+<div><dt>Freigaben offen</dt><dd>{pending}</dd></div>
+<div><dt>Notaus</dt><dd class="{'alert' if kill else 'ok'}">{'AKTIV' if kill else 'bereit · aus'}</dd></div>
+</dl>
+<a class="button" href="/chat">Chat öffnen</a></div>
 </header>
 <section class="pills" aria-label="Status">
 <span class="pill {'alert' if kill else 'ok'}">Notaus <b>{'AKTIV' if kill else 'aus'}</b></span>
@@ -930,7 +965,7 @@ class WebApp(ApprovalPages, SkillPages, TaskPages):
             banner += (f"<div class=\"notice\"><p><b>{withheld} Antwort(en) zurückgehalten</b>, weil sich ihre Quellen geändert "
                        f"haben. Zum Ansehen oder endgültigen Schwärzen mit Passwort bestätigen.</p>"
                        f"{self._unlock_box(session, '/chat?g=' + conv)}</div>")
-        inner = f"""<header class="top"><div><p class="eyebrow">JARVIS · Chat</p><h1>Gespräch</h1></div>
+        inner = f"""<header class="top hud-chat"><div class="hud-mini">{hud_globe("globe mini", "JARVIS aktiv")}</div><div class="hud-title"><p class="eyebrow"><span class="live"></span>JARVIS · Chat</p><h1>Gespräch</h1></div>
 <form method="post" action="/chat/neu"><input type="hidden" name="csrf" value="{csrf}"><button class="ghost" type="submit">Neues Gespräch</button></form></header>
 {banner}
 <div class="chat-layout">

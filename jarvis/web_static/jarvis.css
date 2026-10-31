@@ -1,4 +1,4 @@
-/* JARVIS – leichtes HUD-Design. Keine Animationen außer einem kurzen Statuspuls, keine externen Schriften. */
+/* JARVIS – HUD-Design. Animationen nur per CSS (kein JavaScript, keine externen Dateien). Bei "Bewegung reduzieren" aus. */
 :root{--bg:#0b1016;--panel:#111a23;--line:#1f2c39;--fg:#dbe6ef;--muted:#8ba0b3;--accent:#5fd4e8;--warn:#f0b35a;
 --ok:#73d29b;--alert:#ff6b6b;--mono:Menlo,Monaco,"Courier New",monospace;--sans:-apple-system,"Helvetica Neue",Arial,sans-serif;
 color-scheme:dark}
@@ -116,3 +116,74 @@ a.pill{text-decoration:none}
 /* Version 5: Freigabezentrale */
 .hits li > .pill{display:inline-block;margin-top:4px;padding:2px 10px}
 .list li.alert b{color:var(--alert)}
+/* ======================================================================
+   Version 5.3 – HUD im Stil eines holografischen Assistenten (eigenes Design)
+   Nur transform/opacity werden animiert: läuft auch auf älteren Macs flüssig.
+   ====================================================================== */
+:root{--bg:#050b12;--panel:rgba(10,24,36,.82);--line:#16324a;--accent:#4fe3ff;--accent2:#ff9f43;--glow:rgba(79,227,255,.22)}
+body{background-color:var(--bg);
+background-image:radial-gradient(ellipse at 50% -10%,rgba(79,227,255,.16),transparent 60%),
+linear-gradient(rgba(79,227,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(79,227,255,.05) 1px,transparent 1px);
+background-size:auto,40px 40px,40px 40px;background-attachment:fixed}
+/* Scan-Linien und wandernder Lichtstreifen (Rechenzentrum) */
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
+background:repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px)}
+body::after{content:"";position:fixed;left:0;right:0;top:-30vh;height:30vh;pointer-events:none;z-index:51;
+background:linear-gradient(180deg,transparent,rgba(79,227,255,.06),transparent);animation:sweep 9s linear infinite}
+@keyframes sweep{to{transform:translateY(160vh)}}
+.panel{border-color:var(--line);box-shadow:inset 0 0 0 1px rgba(79,227,255,.04),0 0 24px rgba(0,0,0,.35);position:relative}
+.panel::before{content:"";position:absolute;top:-1px;left:-1px;width:14px;height:14px;border-top:2px solid var(--accent);border-left:2px solid var(--accent);border-radius:10px 0 0 0;opacity:.7}
+.panel::after{content:"";position:absolute;bottom:-1px;right:-1px;width:14px;height:14px;border-bottom:2px solid var(--accent);border-right:2px solid var(--accent);border-radius:0 0 10px 0;opacity:.7}
+h1{text-shadow:0 0 18px var(--glow)}
+button,a.button{box-shadow:0 0 16px var(--glow)}
+.nav{background:rgba(5,11,18,.9);border-bottom-color:var(--line)}
+.nav .brand{display:inline-flex;align-items:center;gap:8px;text-shadow:0 0 10px var(--glow)}
+.live{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:8px;vertical-align:middle;box-shadow:0 0 8px var(--ok);animation:blink 2.4s ease-in-out infinite}
+@keyframes blink{50%{opacity:.25}}
+/* Reaktor-Symbol in der Navigation */
+.reactor{width:22px;height:22px;overflow:visible}
+.reactor .r-core{fill:var(--accent);opacity:.9}
+.reactor .r-ring{fill:none;stroke:var(--accent);stroke-width:2;stroke-dasharray:6 3}
+.reactor .r-spin{transform-box:fill-box;transform-origin:center;animation:spin 6s linear infinite}
+/* Startseite */
+.hud-hero{display:grid;grid-template-columns:minmax(220px,340px) 1fr;gap:28px;align-items:center}
+@media (max-width:720px){.hud-hero{grid-template-columns:1fr}.hud-globe{max-width:260px;margin:0 auto}}
+.hud-read{display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.hud-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:4px 0;width:100%}
+.hud-stats div{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 12px;min-width:0}
+.hud-stats dt{font-family:var(--mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.hud-stats dd{margin:2px 0 0;font-family:var(--mono);font-size:.85rem;color:var(--accent);overflow-wrap:anywhere}
+.hud-stats dd.ok{color:var(--ok)} .hud-stats dd.alert{color:var(--alert)}
+/* Weltkugel */
+.globe{width:100%;height:auto;display:block;overflow:visible}
+.globe .g-glow{fill:rgba(79,227,255,.07);stroke:none}
+.globe .g-sphere{fill:rgba(8,30,46,.55);stroke:var(--accent);stroke-width:1.4;opacity:.9}
+.globe .g-lat{fill:none;stroke:var(--accent);stroke-width:.8;opacity:.45}
+.globe .g-mer{fill:none;stroke:var(--accent);stroke-width:.9;opacity:.65;transform-box:fill-box;transform-origin:center;
+animation:meridian 12s linear infinite}
+.globe .m2{animation-delay:-2s}.globe .m3{animation-delay:-4s}.globe .m4{animation-delay:-6s}
+.globe .m5{animation-delay:-8s}.globe .m6{animation-delay:-10s}
+@keyframes meridian{0%{transform:scaleX(0)}16.67%{transform:scaleX(.5)}33.33%{transform:scaleX(.866)}50%{transform:scaleX(1)}
+66.67%{transform:scaleX(.866)}83.33%{transform:scaleX(.5)}100%{transform:scaleX(0)}}
+.globe .g-ring,.globe .g-orbit,.globe .g-ticks{transform-box:fill-box;transform-origin:center}
+.globe .g-path{fill:none;stroke:none}
+.globe .g-dash{fill:none;stroke:var(--accent);stroke-width:2;stroke-dasharray:40 14 6 14;opacity:.6}
+.globe .g-dash2{fill:none;stroke:var(--accent2);stroke-width:1.2;stroke-dasharray:3 9;opacity:.7}
+.globe .g-tick{fill:none;stroke:var(--accent);stroke-width:6;stroke-dasharray:1 11;opacity:.35}
+.globe .g-ring-a{animation:spin 24s linear infinite}
+.globe .g-ring-b{animation:spin 16s linear infinite reverse}
+.globe .g-ticks{animation:spin 60s linear infinite}
+.globe .g-orbit{animation:spin 7s linear infinite}
+.globe .g-orbit-b{animation-duration:11s;animation-direction:reverse}
+.globe .g-dot{fill:var(--accent2)}
+.globe .g-scan{stroke:var(--accent);stroke-width:1.5;opacity:.0;animation:scan 4s ease-in-out infinite}
+@keyframes scan{0%{transform:translateY(-78px);opacity:0}15%{opacity:.8}85%{opacity:.8}100%{transform:translateY(78px);opacity:0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Chat-Kopf */
+.hud-chat{align-items:center;justify-content:flex-start}
+.hud-chat form{margin-left:auto}
+.hud-mini{width:64px;flex:0 0 64px}
+.globe.mini .g-lat,.globe.mini .g-tick{display:none}
+.msg-jarvis{border-left:3px solid var(--accent);box-shadow:-6px 0 18px -10px var(--accent)}
+/* Barrierefreiheit: Bewegung reduzieren → alles still */
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important}}
