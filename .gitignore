@@ -5,3 +5,21 @@ __pycache__/
 *.pyc
 .DS_Store
 sicherungen/
+
+# Version 5.3: Geheimnisse und persönliche Daten kommen NIE in GitHub
+.env.*
+!.env.example
+.approval_secret
+web_auth.json
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite
+*.sqlite3
+*.zip
+*.tar.gz
+*.teil
+*.key
+*.pem
+audit.jsonl

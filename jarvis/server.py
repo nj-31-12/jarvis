@@ -35,6 +35,9 @@ except ImportError:  # pragma: no cover – Windows
 BACKUP_PREFIX = "jarvis-sicherung-"
 MANIFEST = "MANIFEST.json"
 SKIP_SUFFIXES = ("-wal", "-shm", "-journal")
+# Version 5.3: Geheimnisse kommen NIE in eine Sicherung. Nach einer Wiederherstellung entsteht ein neues
+# Freigabe-Geheimnis automatisch; das Browser-Passwort wird mit `python3 -m jarvis web-passwort` neu gesetzt.
+SECRET_FILES = frozenset({".approval_secret", "web_auth.json"})
 LOCAL_HOSTS = ("127.0.0.1", "localhost", "::1")
 
 
@@ -279,7 +282,7 @@ def make_backup(cfg: dict, target_dir: str | Path | None = None, clock=time.time
             for path in sorted(data.rglob("*")):
                 rel = path.relative_to(data).as_posix()
                 if path.is_symlink() or not path.is_file() or rel.endswith(SKIP_SUFFIXES) or \
-                        rel.startswith(".lock-") or rel.startswith(".gesundheit-"):
+                        rel.startswith(".lock-") or rel.startswith(".gesundheit-") or rel in SECRET_FILES:
                     continue
                 if not valid_backup_path(rel):
                     raise BackupError(f"Dateiname nicht sicherbar (Steuerzeichen oder Backslash): {rel[:80]!r}. "
@@ -293,7 +296,7 @@ def make_backup(cfg: dict, target_dir: str | Path | None = None, clock=time.time
                 files.append({"pfad": rel, "bytes": len(content), "sha256": _sha256(content)})
                 _add(tar, "data/" + rel, content)
             manifest = {"erstellt": stamp, "version": _version(), "dateien": files,
-                        "hinweis": "Enthält Passwort-Hashes und das Freigabe-Geheimnis. Nur verschlüsselt auslagern."}
+                        "hinweis": "Ohne Passwort und Freigabe-Geheimnis (seit 5.3). Nach dem Wiederherstellen: python3 -m jarvis web-passwort. Enthält trotzdem persönliche Daten – nicht hochladen."}
             _add(tar, MANIFEST, json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8"))
             raw.flush()
             os.fsync(raw.fileno())

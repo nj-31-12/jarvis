@@ -15,6 +15,7 @@ from .actions_sim import make_handlers
 from .approval import ApprovalGate
 from .audit import AuditLog
 from .config import PROJECT_ROOT
+from .ai_providers.anthropic import AIServiceError
 from .budget import BudgetGuard, BudgetExceeded
 from .killswitch import KillSwitch, KillSwitchActive
 from .llm import LLMRouter
@@ -147,6 +148,9 @@ class Jarvis:
         except (BudgetExceeded, KillSwitchActive, PolicyViolation, PermissionError) as exc:
             self.audit.write("refused", reason=str(exc))
             return f"⛔ {exc}"
+        except AIServiceError as exc:          # Meldung enthält nie Inhalte
+            self.audit.write("ai_service_error", reason=str(exc)[:200])
+            return f"⚠️ {exc}"
 
     def handle_voice(self, duration_s: int) -> str:
         return (f"🎙️ Sprachnachricht ({duration_s}s) empfangen.\n"

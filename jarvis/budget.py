@@ -2,13 +2,21 @@
 
 Vor jedem (kostenpflichtigen) Aufruf wird geprüft, ob Tages- und Monatslimit noch reichen.
 Ist ein Limit erreicht, wird der Aufruf hart verweigert.
+
+Version 5.3: Prüfen und Buchen laufen in EINER Datenbank-Transaktion (BEGIN IMMEDIATE). Damit können auch
+mehrere Prozesse (Browser, Aufgabenplaner, Konsole) das Limit nicht gemeinsam überschreiten.
+Gebucht wird VOR dem Aufruf eine Reservierung mit den höchstmöglichen Kosten. Nach der Antwort wird sie auf die
+tatsächlichen Kosten korrigiert (settle). Kommt keine Kostenangabe, bleibt die volle Reservierung stehen.
 """
 from __future__ import annotations
 
+import sqlite3
 import time
 from pathlib import Path
 
 from .db import LockedDB
+
+LOCK_WAIT_SECONDS = 10
 
 
 class BudgetExceeded(RuntimeError):
@@ -16,10 +24,12 @@ class BudgetExceeded(RuntimeError):
 
 
 class BudgetGuard:
-    def __init__(self, db_path: str | Path, daily_eur: float, monthly_eur: float):
+    def __init__(self, db_path: str | Path, daily_eur: float, monthly_eur: float,
+                 lock_wait_seconds: float = LOCK_WAIT_SECONDS):
         self.daily = float(daily_eur)
         self.monthly = float(monthly_eur)
         self.db = LockedDB(db_path)
+        self.db.execute(f"PRAGMA busy_timeout = {int(float(lock_wait_seconds) * 1000)}")
         self.db.execute(
             "CREATE TABLE IF NOT EXISTS usage (ts REAL, day TEXT, month TEXT, provider TEXT, cost_eur REAL)"
         )
@@ -48,11 +58,34 @@ class BudgetGuard:
         )
         self.db.commit()
 
-    def charge(self, provider: str, cost_eur: float) -> None:
-        """Prüfen und verbuchen in einem Schritt, damit parallele Anfragen das Limit nicht gemeinsam überschreiten."""
-        with self.db.lock:
-            self.check(cost_eur)
-            self.record(provider, cost_eur)
+    def charge(self, provider: str, cost_eur: float) -> int:
+        """Prüfen und verbuchen in EINER Transaktion – sicher auch über Prozessgrenzen hinweg.
+
+        Gibt die Kennung der Buchung zurück (für settle). Ist die Datenbank länger als das Zeitlimit von einem
+        anderen Prozess gesperrt, wird abgelehnt: keine Buchung, keine Anfrage."""
+        cost = float(cost_eur)
+        try:
+            with self.db.transaction():
+                self.check(cost)
+                self.db.execute(
+                    "INSERT INTO usage VALUES (?,?,?,?,?)",
+                    (time.time(), time.strftime("%Y-%m-%d"), time.strftime("%Y-%m"), provider, cost),
+                )
+                row = self.db.execute("SELECT last_insert_rowid()").fetchone()
+        except sqlite3.OperationalError as exc:
+            if "locked" in str(exc).lower() or "busy" in str(exc).lower():
+                raise BudgetExceeded("Die Kostenbremse ist gerade von einem anderen Vorgang belegt. "
+                                     "Zur Sicherheit wurde abgelehnt. Bitte gleich noch einmal versuchen.") from None
+            raise
+        return int(row[0])
+
+    def settle(self, booking_id: int, actual_eur: float) -> None:
+        """Reservierung nach der Antwort auf die tatsächlichen Kosten setzen."""
+        actual = float(actual_eur)
+        if actual < 0:
+            return
+        with self.db.transaction():
+            self.db.execute("UPDATE usage SET cost_eur=? WHERE rowid=?", (actual, int(booking_id)))
 
     def status(self) -> str:
         return (

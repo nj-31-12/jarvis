@@ -1,3 +1,39 @@
+# Änderungen in Version 5.3 „Schnellspur“ (gegenüber 5.2)
+
+Grundlage: unveränderte 5.2 (Commit `af23525`, Zweig `main`). Entwickelt auf Zweig `version5-3`.
+Ziel: echtes KI-Gehirn (Claude) so schnell wie möglich – ohne die Sicherheitskette zu schwächen.
+Anleitung für Noah: `docs/22_Claude_einrichten.md`.
+
+## Neu
+| Datei | Zweck |
+|---|---|
+| `jarvis/ai_providers/anthropic.py` | Anbindung an Claude. Nur Standardbibliothek (Python 3.8). Fester Endpunkt, TLS, Zeitlimit, keine Wiederholung, Antwort ≤ 1 MB, nur JSON. Preise je Modell; unbekanntes Modell → keine Anfrage. Meldungen ohne Inhalte. |
+| `tests/test_v5_3_claude.py` | 31 Tests gegen lokalen Fake-Server: Erfolg, Format, Datenschutz, 400/401/429/500, Zeitlimit, Inhaltstyp, Übergröße, kaputtes JSON, fehlende Kosten, Ablehnung, Abschneiden, Sperren, Endpunkte, Kostenbremse mit 2 Prozessen, Sperre, Rollback, Sicherung ohne Geheimnisse |
+| `docs/22_Claude_einrichten.md` | Schritt-für-Schritt-Anleitung (Konto, 5 $ ohne Auto-Reload, Schlüssel in .env, Konfiguration, Test, Rückfall) |
+
+## Geändert
+| Datei | Änderung |
+|---|---|
+| `jarvis/llm.py` | Externe Modelle: Höchstkosten prüfen → reservieren → senden → tatsächliche Kosten abrechnen. Ist die Reservierung kleiner als die Höchstkosten, wird nichts gesendet. 4xx/keine Verbindung → Reservierung wird freigegeben. Zeitüberschreitung/5xx → Reservierung bleibt. |
+| `jarvis/budget.py` | Prüfen und Buchen in **einer** Transaktion (`BEGIN IMMEDIATE`) – sicher über Prozessgrenzen. Gesperrte Datenbank → Ablehnung nach Zeitlimit. Neu: `settle()`. |
+| `jarvis/server.py` | Sicherungen enthalten `.approval_secret` und `web_auth.json` nicht mehr. |
+| `jarvis/ai_models.py` | `make_model` wählt Claude, wenn `provider: "anthropic"` eingetragen ist. Alle Freigabe-Regeln unverändert. |
+| `jarvis/chat.py`, `jarvis/core.py` | Verständliche Fehlermeldungen der KI, tatsächliche Kosten je Antwort |
+| `.gitignore` | Datenbanken, Passwortdateien, Sicherungen, ZIPs, Protokolle nie in Git |
+| `jarvis/__init__.py` | 5.3.0 |
+
+## Nicht geändert / bewusst verschoben
+- Datenbankschema unverändert (keine Umstellung beim Start).
+- Standard bleibt das Testmodell: Ohne Noahs Einträge in `config/jarvis.json` und `.env` geht nichts nach außen.
+- Verschoben auf später: `/bereich`, `/merke`, NJ Digital Solutions, Prüfpunkte 1–6 aus `PLAN-v5-3.md`.
+
+## Tests
+431/431 (400 aus 5.2 + 31 neu) unter Python 3.13. Gegenproben: Ausschluss der Geheimnisse entfernt → Test schlägt an;
+Transaktion entfernt → Prozess-Test schlägt an. Python-3.8-Syntax statisch geprüft. **Nicht getestet:** echter Aufruf bei
+Anthropic, Python 3.8.2 auf macOS Catalina (Zertifikate!), Browser.
+
+---
+
 # Änderungen in Version 5.2 (gegenüber Version 5.1)
 
 Anlass: `test_d5_health_check_changes_nothing` schlug auf Noahs MacBook (macOS Catalina, Python 3.8.2) fehl.

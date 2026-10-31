@@ -7,6 +7,7 @@ läuft durch Kostenbremse und Notabschaltung.
 from __future__ import annotations
 
 import re
+import threading
 
 from .budget import BudgetGuard
 from .killswitch import KillSwitch
@@ -147,6 +148,12 @@ class LLMRouter:
         self.guard = guard
         # Ohne eigene Richtlinie gilt die strengste: nur das eingebaute Testmodell.
         self.policy = policy if policy is not None else ModelPolicy()
+        self._local = threading.local()
+
+    def last_cost_eur(self) -> float:
+        """Kosten der letzten Antwort in diesem Thread (für die Anzeige im Chat). Schätzung, maßgeblich ist die
+        Abrechnung des Anbieters."""
+        return float(getattr(self._local, "cost", 0.0))
 
     def allow_test_double(self, model) -> None:
         """NUR in automatischen Tests: Ersatzmodell ausdrücklich zulassen und einsetzen."""
@@ -172,18 +179,56 @@ class LLMRouter:
         claimed = float(claimed) if isinstance(claimed, (int, float)) and not isinstance(claimed, bool) else 0.0
         self.budget.charge(decision.model, max(decision.cost_eur, claimed, 0.0))
 
+    def _billed(self, model, decision, task: str, chars: int, send):
+        """Externe Anbindung (z. B. Claude): Höchstkosten prüfen → reservieren → senden → abrechnen.
+
+        Lassen sich die Kosten nicht sicher begrenzen (Reservierung kleiner als die Höchstkosten), wird NICHT
+        gesendet. Ohne Kostenangabe in der Antwort bleibt die volle Reservierung gebucht."""
+        from .ai_models import ModelBlocked
+        try:
+            worst = float(model.max_cost_eur(task, chars))
+        except Exception:  # noqa: BLE001 – unbekannter Preis = nicht begrenzbar
+            raise ModelBlocked("Kosten dieses Modells sind nicht begrenzbar. Es wurde nichts gesendet.") from None
+        if worst > decision.cost_eur:
+            raise ModelBlocked(f"KI-Modell '{decision.model}': cost_per_call_eur ({decision.cost_eur:.4f} €) ist "
+                               f"kleiner als die möglichen Höchstkosten ({worst:.4f} €). Bitte erhöhen. "
+                               f"Es wurde nichts gesendet.")
+        booking = self.budget.charge(decision.model, decision.cost_eur)
+        self._local.cost = decision.cost_eur
+        key = self.policy.api_key(decision)
+        try:
+            text, actual = send(key)
+        except Exception as exc:
+            if getattr(exc, "not_billed", False):     # abgelehnt oder nie angekommen → keine Kosten
+                self.budget.settle(booking, 0.0)
+                self._local.cost = 0.0
+            raise
+        if actual is not None:                         # tatsächliche Kosten laut Antwort (auch falls höher)
+            self.budget.settle(booking, float(actual))
+            self._local.cost = float(actual)
+        return text
+
     def complete(self, task: str, text: str) -> str:
+        self._local.cost = 0.0
         model, decision = self._admit(task, len(text or ""))
         if decision.kind != "test":
             _, _, text = self._guard().prepare("", [], text)
+            if hasattr(model, "complete_billed"):
+                return self._billed(model, decision, task, len(text) + 1000,
+                                    lambda key: model.complete_billed(task, text, key))
         self._charge(model, decision)
         return model.complete(task, text)
 
     def chat(self, system_prompt: str, history: list, text: str) -> str:
         """Chat-Antwort. Notaus, Erlaubnisliste, Datenschutz-Schranke und Kostenbremse VOR dem Modellaufruf."""
+        self._local.cost = 0.0
         chars = len(system_prompt or "") + len(text or "") + sum(len(str(m.get("text", ""))) for m in history)
         model, decision = self._admit("chat", chars)
         if decision.kind != "test":
             system_prompt, history, text = self._guard().prepare(system_prompt, history, text)
+            if hasattr(model, "chat_billed"):
+                size = len(system_prompt) + len(text) + sum(len(m["text"]) for m in history) + 200
+                return self._billed(model, decision, "chat", size,
+                                    lambda key: model.chat_billed(system_prompt, history, text, key))
         self._charge(model, decision)
         return model.chat(system_prompt, history, text)

@@ -250,4 +250,10 @@ def make_model(cfg: dict):
     name = ai.get("active_model", "mock") if isinstance(ai, dict) else "mock"
     if name in (None, "", "mock"):
         return MockLLM()
+    models = ai.get("models") if isinstance(ai.get("models"), dict) else {}
+    entry = models.get(name) if isinstance(models.get(name), dict) else {}
+    if entry.get("provider") == "anthropic":
+        from .ai_providers.anthropic import PRICES_USD_PER_MTOK, AnthropicModel
+        if name in PRICES_USD_PER_MTOK:
+            return AnthropicModel(name)
     return NotConnectedModel(str(name)[:64])

@@ -25,6 +25,7 @@ from .budget import BudgetExceeded
 from .db import LockedDB
 from .killswitch import KillSwitchActive
 from .knowledge import quote_fingerprints
+from .ai_providers.anthropic import AIServiceError
 from .outbound import ExternalAIBlocked
 from .persona import build_system_prompt
 
@@ -412,8 +413,11 @@ class ChatService:
             return ROLE_SYSTEM, f"💶 Kostenbremse: {exc} Es wurde keine KI-Anfrage gesendet.", "gesperrt", 0.0
         except ExternalAIBlocked as exc:
             return ROLE_SYSTEM, f"🔒 {exc}", "gesperrt", 0.0
+        except AIServiceError as exc:            # Meldung enthält nie Inhalte (siehe ai_providers)
+            self.jarvis.audit.write("chat_model_error", error="AIServiceError")
+            return ROLE_SYSTEM, f"⚠️ {exc} Deine Nachricht ist gespeichert.", "fehler", 0.0
         except Exception as exc:  # noqa: BLE001 – Modellfehler dürfen den Chat nicht abstürzen lassen
             self.jarvis.audit.write("chat_model_error", error=type(exc).__name__)
             return ROLE_SYSTEM, "Die KI ist gerade nicht erreichbar. Deine Nachricht ist gespeichert.", "fehler", 0.0
         mode = "test" if getattr(model, "is_test_mode", True) else model.name
-        return ROLE_JARVIS, reply, mode, float(getattr(model, "cost_per_call_eur", 0.0)), sources
+        return ROLE_JARVIS, reply, mode, self.jarvis.llm.last_cost_eur(), sources
