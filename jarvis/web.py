@@ -13,6 +13,7 @@ Es gibt bewusst KEIN JavaScript in Schritt 2 – das schont das MacBook und verk
 from __future__ import annotations
 
 import html
+import json
 import re
 import secrets
 import threading
@@ -517,7 +518,7 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
             if not session:
                 return redirect("/login")
             return self._home(session)
-        if path in ("/gehirn", "/gehirn/notiz"):
+        if path in ("/gehirn", "/gehirn/notiz", "/gehirn/lektion", "/gehirn/daten"):
             if not session:
                 return redirect("/login")
             if self.jarvis is None:
@@ -526,6 +527,15 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
                 inner = self._brain_page(session, html.escape(session.csrf))
                 return Response(200, self._page("Second Brain", inner, body_class="wide", session=session,
                                                 active="gehirn"))
+            if path == "/gehirn/daten" and method == "GET":
+                from .web_brain import brain_data
+                return Response(200, json.dumps(brain_data(self.jarvis.kb), ensure_ascii=False),
+                                "application/json; charset=utf-8")
+            if path == "/gehirn/lektion" and method == "POST":
+                if not wa.check_csrf(session, field("csrf")):
+                    return Response(403, "Ungültiges Prüfzeichen.", "text/plain; charset=utf-8")
+                self._brain_lesson(session, field("text"))
+                return redirect("/gehirn#lektion")
             if path == "/gehirn/notiz" and method == "POST":
                 if not wa.check_csrf(session, field("csrf")):
                     return Response(403, "Ungültiges Prüfzeichen.", "text/plain; charset=utf-8")
@@ -634,7 +644,7 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
 
     # ------------------------------------------------------------------ Seiten
     def _static(self, name: str) -> Response:
-        allowed = {"jarvis.css": "text/css; charset=utf-8"}
+        allowed = {"jarvis.css": "text/css; charset=utf-8", "brain.js": "text/javascript; charset=utf-8"}
         if name not in allowed:
             return Response(404, "Nicht gefunden.", "text/plain; charset=utf-8")
         resp = Response(200, (STATIC_DIR / name).read_bytes(), allowed[name])

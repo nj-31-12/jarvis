@@ -270,6 +270,8 @@ class ActiveMode(Base):
         before = set(p.relative_to(vault).as_posix() for p in vault.rglob("*.md"))
         s = self.scheduler()
         self.clock.t = ts(2026, 11, 2, 19, 0)
+        # Version 5.3: Die Ruhezeit-Prüfung nutzt die echte Uhr. Ohne diese Zeile schlug der Test abends fehl.
+        self.j.notifier.quiet_now = lambda: False
         s.tick()
         new = set(p.relative_to(vault).as_posix() for p in vault.rglob("*.md")) - before
         self.assertTrue(new)

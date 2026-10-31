@@ -244,3 +244,24 @@ box-shadow:0 12px 28px -14px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.06);
 @media (max-width:820px){.brain-grid{grid-template-columns:1fr}}
 .capture{display:flex;flex-direction:column;gap:6px}
 .capture button{align-self:flex-end}
+/* ---- Second Brain 3D (brain.js) ---- */
+.brain3d{display:none;position:relative;height:560px;margin:-8px -8px 4px;border-radius:12px;overflow:hidden;
+background:radial-gradient(ellipse at 50% 50%,rgba(79,227,255,.10),rgba(5,11,18,0) 70%)}
+@media (max-width:720px){.brain3d{height:420px}}
+.brain-stage.js-on .brain3d{display:block}
+.brain-stage.js-on .brain-fallback{display:none}
+.brain3d canvas{width:100%;height:100%;display:block;cursor:grab;touch-action:none;outline:none}
+.brain3d canvas:focus-visible{box-shadow:inset 0 0 0 2px var(--accent)}
+.b3-tip{position:absolute;pointer-events:none;max-width:220px;background:rgba(5,16,26,.92);border:1px solid var(--accent);
+border-radius:8px;padding:6px 10px;display:flex;flex-direction:column;gap:2px;font-size:.85rem;box-shadow:0 0 18px var(--glow)}
+.b3-tip[hidden]{display:none}
+.b3-tip span{color:var(--muted);font-size:.75rem;font-family:var(--mono)}
+.b3-help{position:absolute;left:12px;bottom:10px;right:12px;font-size:.72rem;color:var(--muted);font-family:var(--mono);
+pointer-events:none;text-shadow:0 0 6px #000}
+.b3-help b{color:var(--accent);font-weight:400}
+.b3-legend{position:absolute;top:10px;right:12px;display:flex;flex-direction:column;gap:3px;font-size:.72rem;color:var(--muted);pointer-events:none}
+.b3-legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;background:#9fdcff}
+.b3-legend .k-area::before{background:#4fe3ff;box-shadow:0 0 8px #4fe3ff}
+.b3-legend .k-aufgabe::before{background:#ffd166}.b3-legend .k-lektion::before{background:#c792ea}
+.b3-legend .k-recherche::before{background:#ff9f43}.b3-legend .k-thema::before{background:#7cf0c5}
+.lessons ul{margin-top:12px}

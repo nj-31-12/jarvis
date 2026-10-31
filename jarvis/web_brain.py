@@ -4,7 +4,8 @@ Regeln:
 - Nur LESEN aus dem Vault, Vertrauliches erscheint nie (auch nicht als Titel). Zahlen über vertrauliche Notizen
   werden nur als Anzahl gezeigt.
 - Schreiben nur über den bestehenden Befehl /notiz (neue Datei in 00_Inbox/JARVIS, Notaus wird beachtet).
-- Reines HTML/SVG, animiert über jarvis.css. Kein JavaScript (strenge CSP).
+- Das 3D-Gehirn zeichnet /static/brain.js (eigene Datei, kein Inline-Skript, kein CDN – strenge CSP bleibt).
+  Ohne JavaScript bleibt die SVG-Karte sichtbar. Die Daten kommen aus /gehirn/daten (nur nicht Vertrauliches).
 """
 from __future__ import annotations
 
@@ -14,6 +15,7 @@ import re
 from urllib.parse import quote
 
 from .chat import AREA_KEYWORDS
+from .lessons import LESSON_TYPE, MAX_LESSON_CHARS, add_lesson, lessons
 from .profiles import PROJECTS
 
 MAX_CAPTURE_CHARS = 2000
@@ -37,6 +39,71 @@ def _keywords(project: dict) -> list:
 def _matches(text: str, words: list) -> bool:
     return any(re.search(r"(?<![a-zäöüß])" + re.escape(w) + (r"s?(?![a-zäöüß])" if len(w) <= 4 else ""), text)
                for w in words)
+
+
+WIKILINK = re.compile(r"\[\[([^\]|#]{1,120})(?:[#|][^\]]*)?\]\]")
+MAX_GRAPH_NOTES = 400
+MAX_TOPICS = 8
+
+
+def _topic_of(note) -> str:
+    """Lebensthema aus dem Ordner (z. B. 05_Lernen → Lernen). Nicht festgelegt: wächst mit Noahs Vault."""
+    top = (note.folder or "").split("/")[0]
+    if top.startswith("00_Inbox") or not top:
+        tags = [t.strip(" []") for t in str(note.meta.get("tags", "") if isinstance(note.meta, dict) else "").split(",")]
+        tags = [t for t in tags if t and t not in ("jarvis", "entwurf", "notiz")]
+        return tags[0].capitalize()[:30] if tags else "Eingang"
+    name = re.sub(r"^\d+[_\- ]*", "", top).replace("_", " ").strip()
+    return (name or "Allgemein")[:30]
+
+
+def _area_of(note, projects_words) -> str:
+    tag = str(note.meta.get("bereich", "")).strip().lower() if isinstance(note.meta, dict) else ""
+    if tag:
+        return tag if any(slug == tag for slug, _ in projects_words) else ""
+    low = (note.title + "\n" + note.text[:4000]).lower()
+    for slug, words in projects_words:
+        if _matches(low, words):
+            return slug
+    return ""
+
+
+def _kind(note) -> str:
+    meta = note.meta if isinstance(note.meta, dict) else {}
+    if str(meta.get("typ", "")).lower() == LESSON_TYPE:
+        return "lektion"
+    if note.title.lower().startswith("recherche") or "recherche" in str(meta.get("tags", "")).lower():
+        return "recherche"
+    if "- [ ]" in note.text:
+        return "aufgabe"
+    return "notiz"
+
+
+def brain_data(kb) -> dict:
+    """Daten für das 3D-Gehirn. NUR nicht vertrauliche Notizen, ohne Vorlagen, ohne Inhalte (nur Titel)."""
+    notes = [n for n in kb.notes(include_confidential=False) if not _is_template(n)]
+    notes = sorted(notes, key=lambda n: -n.mtime)[:MAX_GRAPH_NOTES]
+    projects_words = [(p["slug"], _keywords(p)) for p in PROJECTS]
+    by_title = {n.title.strip().lower(): i for i, n in enumerate(notes)}
+    items, links, topics = [], [], {}
+    for i, n in enumerate(notes):
+        area = _area_of(n, projects_words)
+        if not area:                                  # kein Geschäftsbereich → eigenes Lebensthema aus dem Ordner
+            name = _topic_of(n)
+            area = "thema:" + name.lower()
+            topics.setdefault(area, {"slug": area, "name": name, "status": "Thema", "count": 0, "search": name})
+            topics[area]["count"] += 1
+        items.append({"id": n.id, "title": n.title[:120], "area": area, "kind": _kind(n)})
+        for target in WIKILINK.findall(n.text[:20000]):
+            j = by_title.get(target.strip().lower())
+            if j is not None and j != i:
+                links.append([i, j])
+    extra = sorted(topics.values(), key=lambda t: -t["count"])[:MAX_TOPICS]
+    keep = {t["slug"] for t in extra}
+    for it in items:                                  # zu kleine Themen hängen am Kern
+        if it["area"].startswith("thema:") and it["area"] not in keep:
+            it["area"] = ""
+    return {"areas": area_counts(kb) + extra, "notes": items, "links": links[:1500]}
 
 
 def area_counts(kb) -> list:
@@ -118,13 +185,28 @@ class BrainPages:
                         for src, t in tasks], "Keine offenen Aufgaben (Zeilen mit „- [ ]“ in deinen Notizen).")
         goal_html = li([f"<li>{html.escape(g)}</li>" for g in goals], "Noch keine Ziele in 01_Ziele.")
         hidden = stats.get("confidential", 0)
+        learned = lessons(kb)
+        lesson_html = li([f'<li><a href="/wissen/notiz?id={html.escape(x["id"])}">{html.escape(x["text"])}</a></li>'
+                          for x in learned], "Noch keine Lektionen.")
+        lflash = session.data.pop("lesson_flash", "")
+        lesson_flash = (f'<p class="{"success" if lflash.startswith("🧠") else "error"}" role="status">'
+                        f'{html.escape(lflash)}</p>') if lflash else ""
+        research = [n for n in kb.recent(limit=60) if _kind(n) == "recherche"][:6]
+        research_html = li([f'<li><a href="/wissen/notiz?id={html.escape(n.id)}">{html.escape(n.title)}</a></li>'
+                            for n in research], "Noch keine Recherchen.")
         return f"""<header class="top brain-top"><div><p class="eyebrow"><span class="live"></span>JARVIS · Second Brain</p>
 <h1>Dein zweites Gehirn</h1></div>
 <div class="brain-kpis"><div><b>{stats.get('visible', 0)}</b><span>Notizen</span></div>
 <div><b>{len(tasks)}</b><span>offene Aufgaben</span></div><div><b>{len(goals)}</b><span>Ziele</span></div>
+<div><b>{len(learned)}</b><span>Lektionen</span></div>
 <div><b>{hidden}</b><span>vertraulich (verborgen)</span></div></div></header>
-<section class="panel brain-stage" aria-label="Wissenskarte">{brain_map(areas, stats.get('visible', 0))}
-<p class="hint">Jeder Punkt ist ein Geschäftsbereich, die Zahl zeigt passende Notizen. Klick öffnet die Suche. Vertrauliche Notizen (z. B. aus 90_Privat) werden nie gezeigt.</p></section>
+<section class="panel brain-stage" aria-label="Dein Gehirn in 3D">
+<div class="brain3d" id="brain3d" data-src="/gehirn/daten"><canvas aria-label="3D-Gehirn: Bereiche und Notizen als Neuronen"></canvas>
+<div class="b3-tip" hidden></div>
+<div class="b3-help"><b>Steuerung</b> · Zwei Finger wischen: drehen · Zwei Finger auf/zu: hineinfliegen · Shift + wischen: hindurchfliegen · Klick: öffnen · Doppelklick: zurück</div>
+<div class="b3-legend"><span class="k-area">Bereich</span><span class="k-notiz">Notiz</span><span class="k-aufgabe">Aufgabe</span><span class="k-lektion">Lektion</span><span class="k-recherche">Recherche</span><span class="k-thema">Lebensthema</span></div></div>
+<div class="brain-fallback">{brain_map(areas, stats.get('visible', 0))}</div>
+<p class="hint">Jeder leuchtende Knoten ist ein Geschäftsbereich, die kleinen Lichter sind deine Notizen, Lichtimpulse zeigen Verbindungen. Vertrauliche Notizen (z. B. aus 90_Privat) werden nie gezeigt.</p></section>
 <div class="brain-grid">
 <section class="panel"><h2>Schnell festhalten</h2>{flash_html}
 <form class="capture" method="post" action="/gehirn/notiz"><input type="hidden" name="csrf" value="{csrf}">
@@ -135,7 +217,20 @@ class BrainPages:
 <section class="panel"><h2>Offene Aufgaben</h2><ul class="list hits">{task_html}</ul></section>
 <section class="panel"><h2>Zuletzt im Gedächtnis</h2><ul class="list hits">{recent_html}</ul></section>
 <section class="panel"><h2>Ziele</h2><ul class="list">{goal_html}</ul></section>
-</div>"""
+<section class="panel lessons"><h2>Lektionen – damit Fehler nicht wieder passieren</h2>{lesson_flash}
+<form class="capture" method="post" action="/gehirn/lektion"><input type="hidden" name="csrf" value="{csrf}">
+<label for="lektion">Was soll JARVIS sich dauerhaft merken?</label>
+<textarea id="lektion" name="text" rows="2" maxlength="{MAX_LESSON_CHARS}" required placeholder="z. B. Beim Update immer den Zweig version5-3 herunterladen, nicht main."></textarea>
+<button type="submit" {'disabled' if kill else ''}>Lektion merken</button></form>
+<ul class="list">{lesson_html}</ul>
+<p class="hint">Gemerkte Lektionen beachtet JARVIS bei jeder Antwort. Entfernen: die Notiz in Obsidian löschen. Sicherheitsregeln können Lektionen nicht aufheben.</p></section>
+<section class="panel"><h2>Denken &amp; Forschen</h2><ul class="list hits">{research_html}</ul>
+<p class="hint">Recherche-Ergebnisse der Nachtarbeit erscheinen hier und im Gehirn als orange Neuronen. Neue Recherchen: Befehl <code>/nacht</code> im Chat (nutzt die KI nur, wenn „research“ freigegeben ist).</p></section>
+</div>
+<script src="/static/brain.js" defer></script>"""
+
+    def _brain_lesson(self, session, text: str) -> None:
+        session.data["lesson_flash"] = add_lesson(self.jarvis, text)
 
     def _brain_capture(self, session, text: str) -> None:
         text = (text or "").replace("\r\n", "\n").strip()[:MAX_CAPTURE_CHARS]
