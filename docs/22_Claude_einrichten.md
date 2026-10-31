@@ -10,7 +10,8 @@ Diese Anleitung macht aus dem Testmodell ein echtes Gehirn. Es gibt vier Teile:
 - **D:** Erster Test
 
 > **Neu seit 31.10.2026:** JARVIS liegt in `~/JARVIS/jarvis-nj` (nicht mehr in Downloads).
-> Updates: neue ZIP herunterladen, dann `sh ~/JARVIS/jarvis-nj/werkzeuge/update-mac.sh`.
+> Updates: https://github.com/nj-31-12/jarvis/archive/refs/heads/aktuell.zip herunterladen, dann
+> `sh ~/JARVIS/jarvis-nj/werkzeuge/update-mac.sh`. Rückfall: `~/JARVIS/RUECKFALL_Stabil-ohne-KI/jarvis-v5-2`.
 
 **Regel:** Jeder Befehl wird einzeln ausgeführt. Danach wartest du auf das Ergebnis und meldest es Claude, wenn etwas komisch aussieht.
 

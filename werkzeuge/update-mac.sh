@@ -7,10 +7,10 @@
 ZIEL="$HOME/JARVIS/jarvis-nj"
 UPDATES="$HOME/JARVIS/updates"
 
-ZIP=$(ls -t "$HOME/Downloads"/jarvis-version5-3*.zip 2>/dev/null | head -1)
+ZIP=$(ls -t "$HOME/Downloads"/jarvis-aktuell*.zip "$HOME/Downloads"/jarvis-version5-3*.zip 2>/dev/null | head -1)
 if [ -z "$ZIP" ]; then
   echo "Keine neue JARVIS-ZIP in Downloads gefunden."
-  echo "Bitte zuerst herunterladen: https://github.com/nj-31-12/jarvis/archive/refs/heads/version5-3.zip"
+  echo "Bitte zuerst herunterladen: https://github.com/nj-31-12/jarvis/archive/refs/heads/aktuell.zip"
   exit 1
 fi
 if [ ! -d "$ZIEL/jarvis" ] || [ ! -d "$ZIEL/data" ]; then
@@ -19,7 +19,7 @@ if [ ! -d "$ZIEL/jarvis" ] || [ ! -d "$ZIEL/data" ]; then
 fi
 
 mkdir -p "$UPDATES"
-NAME="jarvis-update-$(date +%Y-%m-%d_%H%M).zip"
+NAME="JARVIS-Update_$(date +%Y-%m-%d_%H-%M).zip"
 mv "$ZIP" "$UPDATES/$NAME" || exit 1
 TMP="$HOME/JARVIS/.update-tmp"
 rm -rf "$TMP" && mkdir -p "$TMP"
