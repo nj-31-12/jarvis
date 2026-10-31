@@ -1,0 +1,88 @@
+{
+  "timezone": "Europe/Berlin",
+  "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+  },
+  "briefing_time": "07:00",
+  "approval_ttl_minutes": 60,
+  "budget": {
+    "daily_eur": 1.0,
+    "monthly_eur": 15.0
+  },
+  "vault_dir": "data/vault",
+  "vault_auto_write_dirs": [
+    "00_Inbox/JARVIS"
+  ],
+  "research_topics": [
+    "Shopify-Trends",
+    "Affiliate-Programme im Fitness-Bereich",
+    "KI-Automatisierung für kleine Online-Shops"
+  ],
+  "forbidden_terms": [
+    "iban",
+    "bic",
+    "onlinebanking",
+    "pin",
+    "tan",
+    "kreditkarte",
+    "NAME_DEINES_AUSBILDUNGSBETRIEBS"
+  ],
+  "telegram": {
+    "allowed_user_ids": [],
+    "approval_chat_id": null
+  },
+  "business_areas": [
+    "NYoung.Coaching",
+    "Fitness und Ernährungsberatung",
+    "Community-Management",
+    "Shopify und E-Commerce",
+    "Scent Edit und Parfüm-Affiliate-Marketing",
+    "Social Media und Content-Produktion",
+    "KI-Automatisierung",
+    "Webdesign und Softwareentwicklung",
+    "Automobilbranche und Fahrzeughandel",
+    "Neue digitale Geschäftsmodelle",
+    "Unternehmensführung und Organisation",
+    "Weiterbildung und persönliche Entwicklung",
+    "Young Living Network-Marketing"
+  ],
+  "night_topics_per_run": 3,
+  "web": {
+    "host": "127.0.0.1",
+    "port": 8765,
+    "session_minutes": 30,
+    "approvals_enabled": false,
+    "users": []
+  },
+  "voice": {
+    "tts": "stumm",
+    "stt": "aus",
+    "profile": "erzähler",
+    "description": "ruhig, tief, natürlich, souverän und intelligent"
+  },
+  "knowledge": {
+    "private_dirs": [
+      "90_Privat"
+    ],
+    "confidential_terms": [],
+    "max_note_kb": 1024,
+    "max_notes": 2000
+  },
+  "privacy": {
+    "external_ai_allowed": false,
+    "max_chars_external": 12000
+  },
+  "ai": {
+    "active_model": "mock",
+    "models": {}
+  },
+  "scheduler": {
+    "mode": "test"
+  },
+  "server": {
+    "mode": "lokal",
+    "min_free_mb": 500,
+    "backup_max_age_hours": 48
+  }
+}

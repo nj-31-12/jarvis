@@ -1,0 +1,19 @@
+# Tägliche Sicherung (VORLAGE). Legt immer eine NEUE Datei an, löscht nichts.
+[Unit]
+Description=JARVIS Sicherung
+
+[Service]
+Type=oneshot
+User=jarvis
+Group=jarvis
+WorkingDirectory=/opt/jarvis
+Environment=JARVIS_CONFIG=/etc/jarvis/jarvis.json
+Environment=JARVIS_DATA_DIR=/var/lib/jarvis/data
+Environment=JARVIS_BACKUP_DIR=/var/lib/jarvis/sicherungen
+ExecStart=/usr/bin/python3 -m jarvis sicherung
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/jarvis
+UMask=0077

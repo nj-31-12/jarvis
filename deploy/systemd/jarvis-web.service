@@ -1,0 +1,45 @@
+# JARVIS Browseroberfläche als Dienst (Linux-Server, systemd). VORLAGE – erst nach deiner Freigabe einrichten.
+# Pfade anpassen: /opt/jarvis (Programm), /var/lib/jarvis (Daten), /etc/jarvis (Konfiguration).
+[Unit]
+Description=JARVIS Weboberfläche (nur 127.0.0.1, Zugang über privaten Tunnel)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=jarvis
+Group=jarvis
+WorkingDirectory=/opt/jarvis
+Environment=JARVIS_CONFIG=/etc/jarvis/jarvis.json
+Environment=JARVIS_DATA_DIR=/var/lib/jarvis/data
+Environment=JARVIS_VAULT_DIR=/var/lib/jarvis/data/vault
+Environment=JARVIS_BACKUP_DIR=/var/lib/jarvis/sicherungen
+Environment=TZ=Europe/Berlin
+Environment=PYTHONUNBUFFERED=1
+# Geheimnisse NICHT hier eintragen. systemd stellt sie nur diesem Dienst als Dateien bereit:
+LoadCredential=JARVIS_APPROVAL_SECRET:/etc/jarvis/credentials/JARVIS_APPROVAL_SECRET
+ExecStart=/usr/bin/python3 -m jarvis web
+# Automatischer Neustart nach Absturz (nicht nach normalem Beenden); höchstens 5 Starts in 10 Minuten
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=20
+KillSignal=SIGTERM
+# Härtung: Dienst darf nur seinen Datenordner beschreiben
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ReadWritePaths=/var/lib/jarvis
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,27 @@
+{
+  "server": {
+    "mode": "server",
+    "min_free_mb": 1000,
+    "backup_max_age_hours": 30
+  },
+  "web": {
+    "host": "127.0.0.1",
+    "port": 8765,
+    "session_minutes": 30,
+    "approvals_enabled": false,
+    "users": [
+      "nj"
+    ]
+  },
+  "privacy": {
+    "external_ai_allowed": false,
+    "max_chars_external": 12000
+  },
+  "ai": {
+    "active_model": "mock",
+    "models": {}
+  },
+  "scheduler": {
+    "mode": "test"
+  }
+}

@@ -1,0 +1,18 @@
+# Gesundheitsprüfung (VORLAGE). Ergebnis steht im Systemprotokoll: journalctl -u jarvis-health
+[Unit]
+Description=JARVIS Gesundheitsprüfung
+
+[Service]
+Type=oneshot
+User=jarvis
+Group=jarvis
+WorkingDirectory=/opt/jarvis
+Environment=JARVIS_CONFIG=/etc/jarvis/jarvis.json
+Environment=JARVIS_DATA_DIR=/var/lib/jarvis/data
+Environment=JARVIS_BACKUP_DIR=/var/lib/jarvis/sicherungen
+ExecStart=/usr/bin/python3 -m jarvis gesundheit
+# 1 = nur Warnungen: kein Fehlerzustand des Dienstes
+SuccessExitStatus=1
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/jarvis
