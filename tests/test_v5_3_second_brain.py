@@ -98,7 +98,8 @@ class SecondBrainTests(JarvisBase):
 
     def test_nur_eigenes_lokales_skript_keine_externen_quellen(self):
         body = self.page()
-        self.assertEqual(re.findall(r"<script[^>]*>", body), ['<script src="/static/brain.js" defer>'])
+        self.assertEqual(re.findall(r"<script[^>]*>", body),
+                         ['<script src="/static/brain.js" defer>', '<script src="/static/hud.js" defer>'])
         self.assertIn('<script src="/static/brain.js" defer></script>', body)        # leer, kein Inline-Code
         self.assertNotRegex(body, r"https?://(?!127\.0\.0\.1)")
         js = self.req("GET", "/static/brain.js")

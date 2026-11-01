@@ -327,3 +327,100 @@ padding:10px 18px;border-radius:999px;background:rgba(5,16,26,.94);border:1px so
 .t-orb i{position:absolute;inset:0;border-radius:50%;border:2px solid transparent;border-top-color:var(--accent);animation:spin 1s linear infinite}
 .t-orb i:nth-child(2){inset:4px;border-top-color:var(--accent2);animation-duration:1.4s;animation-direction:reverse}
 .t-orb i:nth-child(3){inset:9px;background:var(--accent);border:0;animation:breathe 1.2s ease-in-out infinite}
+/* ======================================================================
+   Stand 16 – Poster-Startseite, Datenkugel, Galaxie-Portal, Datentunnel (hud.js)
+   ====================================================================== */
+.poster{position:relative;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 0 4px}
+.poster-kicker{font-family:var(--mono);font-size:.78rem;letter-spacing:.42em;text-transform:uppercase;color:var(--fg);opacity:.85;margin:0}
+.poster-title{font-size:clamp(3.4rem,11vw,7.2rem);line-height:1;letter-spacing:.12em;margin:6px 0 0;font-weight:800;
+background:linear-gradient(180deg,#f2fdff 0%,#a9ecff 38%,#3fb9e0 62%,#0f5f86 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+filter:drop-shadow(0 0 22px rgba(79,227,255,.45));animation:title-glow 4s ease-in-out infinite}
+@keyframes title-glow{50%{filter:drop-shadow(0 0 34px rgba(79,227,255,.75))}}
+.poster-sub{font-family:var(--mono);letter-spacing:.32em;text-transform:uppercase;font-size:clamp(.8rem,2vw,1.15rem);margin:0;color:#cfe9f5}
+.poster-tag{font-family:var(--mono);font-size:.8rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin:4px 0 8px}
+.poster-tag b{color:var(--accent);font-weight:400}
+.poster-grid{display:grid;grid-template-columns:minmax(180px,230px) minmax(260px,460px) minmax(180px,230px);gap:18px;align-items:center;width:100%;justify-content:center}
+@media (max-width:900px){.poster-grid{grid-template-columns:1fr}.poster-core{order:-1;max-width:360px;margin:0 auto}}
+.poster-side{display:flex;flex-direction:column;gap:12px;text-align:left}
+.hud-card{border:1px solid rgba(79,227,255,.28);background:linear-gradient(160deg,rgba(79,227,255,.08),rgba(8,20,30,.9));border-radius:10px;padding:10px 12px;
+display:flex;flex-direction:column;gap:6px;box-shadow:inset 0 0 18px rgba(79,227,255,.06)}
+.hud-card .hc-t{font-family:var(--mono);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.hud-card b{font-family:var(--mono);font-weight:400;color:var(--accent);font-size:.9rem;overflow-wrap:anywhere}
+.hud-card b.ok{color:var(--ok)} .hud-card b.alert{color:var(--alert)}
+.hud-card small{color:var(--muted);font-size:.7rem}
+.wave{display:flex;align-items:center;gap:2px;height:22px}
+.wave i{flex:1;height:30%;background:var(--accent);border-radius:1px;animation:wave 1.4s ease-in-out infinite;opacity:.8}
+.wave i:nth-child(3n){animation-delay:-.3s}.wave i:nth-child(3n+1){animation-delay:-.7s}.wave i:nth-child(4n){animation-delay:-1s}.wave i:nth-child(5n){animation-delay:-.5s}
+@keyframes wave{50%{height:100%}}
+.meter{height:6px;border-radius:3px;background:rgba(79,227,255,.12);overflow:hidden}
+.meter i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#e8fbff);box-shadow:0 0 10px var(--accent)}
+.ring-ico{position:relative;width:44px;height:44px}
+.ring-ico i{position:absolute;inset:0;border-radius:50%;border:2px solid var(--accent);border-right-color:transparent;animation:spin 3s linear infinite}
+.ring-ico i+i{inset:12px;border-color:var(--accent2);border-left-color:transparent;animation-direction:reverse;animation-duration:2s}
+.bars{display:flex;gap:8px;align-items:flex-end;height:74px}
+.bars .bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:2px;min-width:0}
+.bars .bar i{display:block;width:100%;min-height:3px;background:linear-gradient(0deg,rgba(79,227,255,.35),var(--accent));border-radius:2px 2px 0 0;box-shadow:0 0 8px rgba(79,227,255,.4)}
+.bars .bar span{font-size:.55rem;color:var(--muted);font-family:var(--mono);max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.bars .bar b{font-size:.7rem}
+.poster-core{position:relative;aspect-ratio:1/1;width:100%}
+.poster-core .hud-canvas{position:absolute;inset:0;width:100%;height:100%;display:none;touch-action:none;outline:none;cursor:grab;z-index:2}
+.poster-core.hud-on .hud-canvas{display:block}
+.poster-core.hud-on .hud-fallback{visibility:hidden}
+.hud-canvas.hud-active{cursor:grabbing;box-shadow:inset 0 0 0 1px rgba(79,227,255,.35);border-radius:50%}
+.core-hint{position:absolute;left:0;right:0;bottom:-6px;font-size:.66rem;color:var(--muted);font-family:var(--mono);margin:0;z-index:3;display:none}
+.poster-core.hud-on .core-hint{display:block}
+.poster-quote{margin:14px 0 0;font-family:var(--mono);font-size:.85rem;letter-spacing:.12em;text-transform:uppercase;color:#cfe9f5}
+.poster-quote b{color:var(--accent);font-weight:400}
+.features{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}
+@media (max-width:820px){.features{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.features div{display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;padding:16px 10px;border-right:1px solid var(--line)}
+.features div:last-child{border-right:0}
+.features svg{width:40px;height:40px;fill:none;stroke:var(--accent);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 6px rgba(79,227,255,.6));margin-bottom:4px}
+.features b{font-family:var(--mono);font-weight:400;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase}
+.features span{font-size:.78rem;color:var(--muted)}
+.flow{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:16px 18px}
+.flow ol{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;counter-reset:f}
+@media (max-width:820px){.flow ol{grid-template-columns:1fr}}
+.flow li{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px;counter-increment:f}
+.flow li::before{content:counter(f);display:grid;place-items:center;width:46px;height:46px;border-radius:50%;border:1.5px solid var(--accent);
+color:var(--accent);font-family:var(--mono);box-shadow:0 0 14px rgba(79,227,255,.35),inset 0 0 10px rgba(79,227,255,.2);margin-bottom:6px}
+.flow li:not(:last-child)::after{content:"→";position:absolute;right:-12px;top:12px;color:var(--accent);opacity:.7}
+@media (max-width:820px){.flow li:not(:last-child)::after{display:none}}
+.flow b{font-family:var(--mono);font-weight:400;font-size:.75rem;letter-spacing:.12em;text-transform:uppercase}
+.flow span{font-size:.75rem;color:var(--muted)}
+/* Portal als Galaxie + Tunnel (hud.js) */
+.portal-canvas{position:fixed;inset:0;width:100vw;height:100vh;z-index:70;background:#03080e;cursor:pointer;transition:opacity .45s ease}
+.portal-canvas.portal-out{opacity:0}
+/* Denk-Anzeige mit Strudel */
+.t-swirl{width:30px;height:30px;display:block}
+.thinking.hud-on .t-orb{display:none}
+/* Second Brain: Ansicht umschalten */
+.view-switch{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:0 0 10px}
+.view-switch button{margin:0;border-radius:0;background:transparent;color:var(--muted);box-shadow:none;padding:6px 14px;font-size:.8rem}
+.view-switch button[aria-pressed="true"]{background:rgba(79,227,255,.18);color:var(--fg)}
+.brain-tunnel{display:none;position:relative;height:560px;margin:-8px -8px 4px;border-radius:12px;overflow:hidden;background:#03080e}
+@media (max-width:720px){.brain-tunnel{height:420px}}
+.brain-tunnel canvas{width:100%;height:100%;display:block;touch-action:none;outline:none;cursor:grab}
+.brain-stage.show-tunnel .brain3d{display:none!important}
+.brain-stage.show-tunnel .brain-tunnel{display:block}
+.bars .lv0{height:0%}.meter .lv0{width:0%}
+.bars .lv5{height:5%}.meter .lv5{width:5%}
+.bars .lv10{height:10%}.meter .lv10{width:10%}
+.bars .lv15{height:15%}.meter .lv15{width:15%}
+.bars .lv20{height:20%}.meter .lv20{width:20%}
+.bars .lv25{height:25%}.meter .lv25{width:25%}
+.bars .lv30{height:30%}.meter .lv30{width:30%}
+.bars .lv35{height:35%}.meter .lv35{width:35%}
+.bars .lv40{height:40%}.meter .lv40{width:40%}
+.bars .lv45{height:45%}.meter .lv45{width:45%}
+.bars .lv50{height:50%}.meter .lv50{width:50%}
+.bars .lv55{height:55%}.meter .lv55{width:55%}
+.bars .lv60{height:60%}.meter .lv60{width:60%}
+.bars .lv65{height:65%}.meter .lv65{width:65%}
+.bars .lv70{height:70%}.meter .lv70{width:70%}
+.bars .lv75{height:75%}.meter .lv75{width:75%}
+.bars .lv80{height:80%}.meter .lv80{width:80%}
+.bars .lv85{height:85%}.meter .lv85{width:85%}
+.bars .lv90{height:90%}.meter .lv90{width:90%}
+.bars .lv95{height:95%}.meter .lv95{width:95%}
+.bars .lv100{height:100%}.meter .lv100{width:100%}

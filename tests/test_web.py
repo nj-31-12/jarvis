@@ -301,10 +301,16 @@ class WebAppTests(Base):
 
     def test_no_external_resources_in_pages(self):
         _, sid = self.login()
-        for body in (self.req("GET", "/login").body.decode(), self.req("GET", "/", cookie=sid).body.decode(),
-                     (Path(__file__).resolve().parent.parent / "jarvis/web_static/jarvis.css").read_text()):
+        login = self.req("GET", "/login").body.decode()
+        home = self.req("GET", "/", cookie=sid).body.decode()
+        static = Path(__file__).resolve().parent.parent / "jarvis/web_static"
+        for body in (login, home, (static / "jarvis.css").read_text(), (static / "hud.js").read_text()):
             self.assertNotRegex(body, r"https?://(?!127\.0\.0\.1)")
-            self.assertNotIn("<script", body)
+        self.assertNotIn("<script", login)                                   # Anmeldung: gar kein Skript
+        # Stand 16: Startseite lädt genau ein eigenes Skript (Datenkugel), kein Inline-Code, keine Inline-Styles
+        self.assertEqual(re.findall(r"<script[^>]*>", home), ['<script src="/static/hud.js" defer>'])
+        self.assertNotIn(' style="', home)
+        self.assertNotIn("innerHTML", (static / "hud.js").read_text())
 
     def test_unicode_attacks_do_not_crash(self):
         _, sid = self.login()

@@ -62,6 +62,11 @@ PORTAL = ('<div class="portal" aria-hidden="true"><div class="p-rays"></div><div
           '<div class="p-ring b"></div><div class="p-ring c"></div><div class="p-core"></div></div>')
 
 
+def _lv(pct: float) -> int:
+    """Füllstand in 5er-Stufen (CSS-Klassen lv0…lv100), weil die strenge CSP Inline-Styles verbietet."""
+    return int(max(0, min(100, round(float(pct) / 5) * 5)))
+
+
 def hud_reactor() -> str:
     return ('<svg class="reactor" viewBox="-12 -12 24 24" aria-hidden="true">'
             '<circle class="r-core" r="4"/><g class="r-spin"><circle class="r-ring" r="9"/></g></svg>')
@@ -656,7 +661,8 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
     # ------------------------------------------------------------------ Seiten
     def _static(self, name: str) -> Response:
         allowed = {"jarvis.css": "text/css; charset=utf-8", "brain.js": "text/javascript; charset=utf-8",
-                   "chat.js": "text/javascript; charset=utf-8"}
+                   "chat.js": "text/javascript; charset=utf-8",
+                   "hud.js": "text/javascript; charset=utf-8"}
         if name not in allowed:
             return Response(404, "Nicht gefunden.", "text/plain; charset=utf-8")
         resp = Response(200, (STATIC_DIR / name).read_bytes(), allowed[name])
@@ -735,18 +741,46 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
         tasks = len(j.kb.open_checkboxes(limit=99)) if j else 0
         hour = time.localtime().tm_hour
         greet = "Guten Morgen" if 5 <= hour < 11 else "Guten Tag" if hour < 18 else "Guten Abend"
-        inner = f"""<header class="hud-hero">
-<div class="hud-globe orb"><div class="orb-ring r1"></div><div class="orb-ring r2"></div><div class="orb-ring r3"></div>{hud_globe()}</div>
-<div class="hud-read"><p class="eyebrow"><span class="live"></span>JARVIS · Systeme online · {greet}</p>
-<h1>Willkommen zurück.</h1>
-<dl class="hud-stats">
-<div><dt>KI-Kern</dt><dd>{html.escape(core)}</dd></div>
-<div><dt>Budget</dt><dd>{budget}</dd></div>
-<div><dt>Freigaben offen</dt><dd>{pending}</dd></div>
-<div><dt>Notaus</dt><dd class="{'alert' if kill else 'ok'}">{'AKTIV' if kill else 'bereit · aus'}</dd></div>
-</dl>
-<a class="button" href="/chat?portal=1">Chat öffnen</a></div>
-</header>
+        lessons_n = 0
+        if j:
+            from .lessons import lessons as _lessons
+            lessons_n = len(_lessons(j.kb))
+        month_pct = 0
+        if j and j.budget.monthly > 0:
+            month_pct = max(0, min(100, int(round(100 * j.budget.spent_month() / j.budget.monthly))))
+        bars = [("Notizen", notes), ("Aufgaben", tasks), ("Lektionen", lessons_n), ("Freigaben", pending)]
+        top = max([v for _, v in bars] + [1])
+        bars_html = "".join(f'<div class="bar"><i class="lv{_lv(max(6, 100 * v / top))}"></i><span>{html.escape(n)}</span>'
+                            f'<b>{v}</b></div>' for n, v in bars)
+        inner = f"""<section class="poster" aria-label="JARVIS Systemübersicht">
+<p class="poster-kicker">Deine Welt · Deine Stimme · Eine Intelligenz</p>
+<h1 class="poster-title" aria-label="JARVIS">JARVIS</h1>
+<p class="poster-sub">Dein persönlicher KI-Assistent</p>
+<p class="poster-tag">Denkt · Versteht · Hilft — <b>{greet}. Willkommen zurück.</b></p>
+<div class="poster-grid">
+<aside class="poster-side">
+<div class="hud-card"><span class="hc-t">Systemstatus</span><div class="wave" aria-hidden="true">{'<i></i>' * 18}</div><b class="{'alert' if kill else 'ok'}">{'NOTAUS AKTIV' if kill else 'ONLINE'}</b></div>
+<div class="hud-card"><span class="hc-t">KI-Kern</span><b>{html.escape(core)}</b></div>
+<div class="hud-card"><span class="hc-t">Budget diesen Monat</span><div class="meter"><i class="lv{_lv(month_pct)}"></i></div><b>{month_pct} %</b><small>{budget}</small></div>
+</aside>
+<div class="poster-core hud-globe orb"><div class="orb-ring r1"></div><div class="orb-ring r2"></div><div class="orb-ring r3"></div>
+<canvas class="hud-canvas" data-hud="sphere" data-label="JARVIS" aria-label="Datenkugel – mit dem Touchpad drehen und zoomen"></canvas>
+<div class="hud-fallback">{hud_globe()}</div>
+<p class="core-hint">Wischen: drehen · Pinch: zoomen · Klick: Steuerung halten</p></div>
+<aside class="poster-side">
+<div class="hud-card"><span class="hc-t">Aktiv</span><div class="ring-ico" aria-hidden="true"><i></i><i></i></div><b>{'gesperrt' if kill else 'bereit'}</b></div>
+<div class="hud-card"><span class="hc-t">Alle Systeme</span><div class="bars">{bars_html}</div></div>
+<a class="button" href="/chat?portal=1">Chat öffnen</a>
+</aside></div>
+<blockquote class="poster-quote">„Die Zukunft kommt nicht von allein. <b>Du baust sie.</b>“</blockquote>
+</section>
+<section class="features" aria-label="Fähigkeiten">
+<div><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><b>Sprache</b><span>Diktieren mit fn fn · JARVIS spricht</span></div>
+<div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 3 5 3 3 0 0 0 5 1V4.5A2.5 2.5 0 0 0 9 4zM15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-3 5 3 3 0 0 1-5 1"/></svg><b>Intelligenz</b><span>Claude · geprüfte Antworten</span></div>
+<div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-5h4v5"/></svg><b>Automatisieren</b><span>Aufgabenplaner · Briefings</span></div>
+<div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><rect x="9" y="11" width="6" height="5" rx="1"/><path d="M10 11V9a2 2 0 0 1 4 0v2"/></svg><b>Sicher &amp; privat</b><span>Freigaben · Notaus · Kostenbremse</span></div>
+<div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4c3 0 6 3 6 6l-6 6-4-4z"/><path d="M10 12l-4 1-2 4 4-1M12 14l-1 4 4-2 1-4"/></svg><b>Lernt dazu</b><span>Lektionen · Second Brain</span></div>
+</section>
 <section class="tiles" aria-label="Schnellzugriff">
 <a class="tile" href="/gehirn"><span class="t-icon">◎</span><b>Second Brain</b><span>{notes} Notizen · {tasks} Aufgaben</span></a>
 <a class="tile" href="/chat?portal=1"><span class="t-icon">◈</span><b>Chat</b><span>Mit JARVIS sprechen</span></a>
@@ -754,11 +788,16 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
 <a class="tile" href="/aufgaben"><span class="t-icon">◇</span><b>Aufgaben</b><span>Planer &amp; Läufe</span></a>
 </section>
 {('<section class="pills">' + withheld_pill + '</section>') if withheld_pill else ''}
+<section class="flow" aria-label="So arbeitet JARVIS"><h2>So arbeitet JARVIS</h2><ol>
+<li><b>Deine Frage</b><span>Tippen oder diktieren</span></li><li><b>KI-Gehirn</b><span>Claude mit deinem Wissen</span></li>
+<li><b>Prüfung</b><span>Antwort + Referenzen</span></li><li><b>Freigabe</b><span>nur bei Aktionen nach außen</span></li>
+<li><b>Stimme</b><span>JARVIS spricht</span></li></ol></section>
 <section class="panel"><h2>Letzte Meldungen</h2><ul class="list">{items}</ul></section>
 <section class="panel muted"><h2>Freigabezentrale</h2><p>Alles, was JARVIS nach außen tun oder verändern möchte, wartet unter <a href="/freigaben">Freigaben</a> auf deine Entscheidung. Nichts wird automatisch genehmigt.</p></section>
 <section class="panel danger"><h2>Notabschaltung</h2><p>Stoppt sofort alle Aktionen. Aufheben nur im Terminal mit <code>python3 -m jarvis resume</code>.</p>
 <form method="post" action="/notaus"><input type="hidden" name="csrf" value="{csrf}"><button class="stop" type="submit" {'disabled' if kill else ''}>Notaus auslösen</button></form></section>"""
-        return Response(200, self._page("Übersicht", inner, session=session, active="home"))
+        inner += '<script src="/static/hud.js" defer></script>'
+        return Response(200, self._page("Übersicht", inner, body_class="wide", session=session, active="home"))
 
     # ------------------------------------------------------------------ Chat
     def _chat_send(self, session: wa.Session, conv: str, text: str) -> Response:
@@ -1050,8 +1089,9 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
 <aside class="panel convs" aria-label="Letzte Gespräche"><h2>Letzte Gespräche</h2><ul class="list">{side}</ul></aside>
 </div>"""
         inner += ('<div class="thinking" aria-live="polite" hidden><div class="t-orb"><i></i><i></i><i></i></div>'
+                  '<canvas class="t-swirl" data-hud="swirl" aria-hidden="true"></canvas>'
                   '<p>JARVIS denkt nach <span>· Antwort wird geprüft</span></p></div>'
-                  '<script src="/static/chat.js" defer></script>')
+                  '<script src="/static/hud.js" defer></script><script src="/static/chat.js" defer></script>')
         return Response(200, self._page("Chat", inner, body_class="wide chat-doc" + (" portal-on" if portal else ""),
                                         session=session, active="chat"))
 

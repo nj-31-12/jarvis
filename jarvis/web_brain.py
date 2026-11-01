@@ -201,6 +201,9 @@ class BrainPages:
 <div><b>{len(learned)}</b><span>Lektionen</span></div>
 <div><b>{hidden}</b><span>vertraulich (verborgen)</span></div></div></header>
 <section class="panel brain-stage" aria-label="Dein Gehirn in 3D">
+<div class="view-switch" role="group" aria-label="Ansicht" hidden><button type="button" data-view="brain" aria-pressed="true">🧠 Gehirn</button><button type="button" data-view="tunnel" aria-pressed="false">⟶ Datentunnel</button></div>
+<div class="brain-tunnel"><canvas data-hud="tunnel" data-src="/gehirn/daten" aria-label="Datentunnel: Notizen an den Wänden, mit dem Touchpad hindurchfliegen"></canvas><div class="b3-tip" hidden></div>
+<div class="b3-help"><b>Datentunnel</b> · Klicken, dann hoch/runter wischen: vor/zurück fliegen · Seitwärts: umsehen · Klick auf Licht: Notiz öffnen</div></div>
 <div class="brain3d" id="brain3d" data-src="/gehirn/daten"><canvas aria-label="3D-Gehirn: Bereiche und Notizen als Neuronen"></canvas>
 <div class="b3-tip" hidden></div>
 <div class="b3-help"><b>Steuerung</b> · Zwei Finger wischen: drehen · Zwei Finger auf/zu: hineinfliegen · Shift + wischen: hindurchfliegen · Klick: öffnen · Doppelklick: zurück</div>
@@ -227,7 +230,7 @@ class BrainPages:
 <section class="panel"><h2>Denken &amp; Forschen</h2><ul class="list hits">{research_html}</ul>
 <p class="hint">Recherche-Ergebnisse der Nachtarbeit erscheinen hier und im Gehirn als orange Neuronen. Neue Recherchen: Befehl <code>/nacht</code> im Chat (nutzt die KI nur, wenn „research“ freigegeben ist).</p></section>
 </div>
-<script src="/static/brain.js" defer></script>"""
+<script src="/static/brain.js" defer></script><script src="/static/hud.js" defer></script>"""
 
     def _brain_lesson(self, session, text: str) -> None:
         session.data["lesson_flash"] = add_lesson(self.jarvis, text)

@@ -310,8 +310,10 @@ class WebChatTests(Base):
         self.req("POST", "/chat", {"csrf": csrf, "g": conv, "text": "Test"}, cookie=sid)
         _, body, _, _ = self.chat_page(sid, f"/chat?g={conv}")
         # Version 5.3: genau ein eigenes, lokales Skript (Stimme, Denk-Anzeige) – kein Inline-Code, kein CDN
-        self.assertEqual(re.findall(r"<script[^>]*>", body), ['<script src="/static/chat.js" defer>'])
+        self.assertEqual(re.findall(r"<script[^>]*>", body),
+                         ['<script src="/static/hud.js" defer>', '<script src="/static/chat.js" defer>'])
         self.assertIn('<script src="/static/chat.js" defer></script>', body)
+        self.assertNotRegex(body, r"<script(?![^>]*src=\"/static/)")                 # nie Inline-Code
         self.assertNotRegex(body, r'(src|href)="https?://')
         js = self.req("GET", "/static/chat.js").body
         js = js.decode() if isinstance(js, bytes) else js
