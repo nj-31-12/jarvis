@@ -31,6 +31,7 @@ HELP = """🤖 JARVIS – Befehle
 /post <Thema> – Social-Media-Post entwerfen + Veröffentlichung zur Freigabe
 /mail <an> | <Betreff> | <Text> – E-Mail vorbereiten (nur mit Freigabe)
 /notiz <Text> – Notiz in Obsidian-Inbox speichern
+/strategie <Idee> – Geschäftsidee durch 11 Experten-Brillen prüfen (landet im Second Brain)
 /suche <Begriff> – im Wissensspeicher suchen (ohne vertrauliche Notizen)
 /wissen <Thema> – was JARVIS zu einem Thema weiß, mit Quellen
 /profile – Stand der Profile deiner Geschäftsbereiche
@@ -114,6 +115,10 @@ class Jarvis:
                 return self.prepare_post(arg) if arg else "Bitte so: /post 5 Fehler beim Muskelaufbau"
             if cmd == "/mail":
                 return self.prepare_mail(arg)
+            if cmd == "/strategie":
+                from .strategy import run_strategy
+                msg, path, analysis = run_strategy(self, arg)
+                return f"{msg}\n\n{analysis}" if path else msg
             if cmd == "/notiz":
                 p = self.vault.write_draft(arg[:60] or "Notiz", arg, ["notiz"])
                 return f"📝 Gespeichert: {p.name}"

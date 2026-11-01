@@ -528,7 +528,7 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
             if not session:
                 return redirect("/login")
             return self._home(session)
-        if path in ("/gehirn", "/gehirn/notiz", "/gehirn/lektion", "/gehirn/daten"):
+        if path in ("/gehirn", "/gehirn/notiz", "/gehirn/lektion", "/gehirn/daten", "/gehirn/strategie"):
             if not session:
                 return redirect("/login")
             if self.jarvis is None:
@@ -541,6 +541,10 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
                 from .web_brain import brain_data
                 return Response(200, json.dumps(brain_data(self.jarvis.kb), ensure_ascii=False),
                                 "application/json; charset=utf-8")
+            if path == "/gehirn/strategie" and method == "POST":
+                if not wa.check_csrf(session, field("csrf")):
+                    return Response(403, "Ungültiges Prüfzeichen.", "text/plain; charset=utf-8")
+                return redirect(self._brain_strategy(session, field("text")))
             if path == "/gehirn/lektion" and method == "POST":
                 if not wa.check_csrf(session, field("csrf")):
                     return Response(403, "Ungültiges Prüfzeichen.", "text/plain; charset=utf-8")
@@ -759,7 +763,7 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
 <p class="poster-tag">Denkt · Versteht · Hilft — <b>{greet}. Willkommen zurück.</b></p>
 <div class="poster-grid">
 <aside class="poster-side">
-<div class="hud-card"><span class="hc-t">Systemstatus</span><div class="wave" aria-hidden="true">{'<i></i>' * 18}</div><b class="{'alert' if kill else 'ok'}">{'NOTAUS AKTIV' if kill else 'ONLINE'}</b></div>
+<div class="hud-card"><span class="hc-t">Systemstatus</span><div class="wave" aria-hidden="true">{'<i></i>' * 12}</div><b class="{'alert' if kill else 'ok'}">{'NOTAUS AKTIV' if kill else 'ONLINE'}</b></div>
 <div class="hud-card"><span class="hc-t">KI-Kern</span><b>{html.escape(core)}</b></div>
 <div class="hud-card"><span class="hc-t">Budget diesen Monat</span><div class="meter"><i class="lv{_lv(month_pct)}"></i></div><b>{month_pct} %</b><small>{budget}</small></div>
 </aside>

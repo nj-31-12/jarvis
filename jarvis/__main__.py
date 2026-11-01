@@ -26,6 +26,7 @@
   wiederherstellen <Datei> <neuer Ordner>  Sicherung in einen LEEREN Ordner auspacken
   chat-pruefen  Zeigt Chat-Antworten, deren Quellen inzwischen vertraulich/unauffindbar sind (nur lesen)
   vorlesen      Text mit der Mac-Stimme im Erzähler-Stil vorlesen (nur macOS, offline)
+  wissen-import <Ordner|.zip>  Wissenspaket (Markdown-Notizen) ins Second Brain übernehmen (nur neue Dateien)
 """
 from __future__ import annotations
 
@@ -464,6 +465,27 @@ def main(argv: list[str]) -> None:
         return check_data(argv[2] if len(argv) > 2 else None)
     if cmd == "chat-pruefen":
         return check_chat()
+    if cmd == "wissen-import":
+        if len(argv) < 3:
+            print("Bitte so: python3 -m jarvis wissen-import ~/Downloads/JARVIS-Wissenspaket.zip")
+            return
+        from .knowledge_import import TARGET, import_pack
+        j = Jarvis(load_config(), load_secrets())
+        if j.kill.is_active():
+            print("🛑 Notabschaltung aktiv. Es wurde nichts importiert.")
+            return
+        res = import_pack(j.vault, argv[2])
+        j.audit.write("knowledge_import", neu=len(res["neu"]), vorhanden=len(res["vorhanden"]),
+                      abgelehnt=len(res["abgelehnt"]))
+        print(f"✅ {len(res['neu'])} Notizen übernommen nach {TARGET}")
+        for n in res["neu"]:
+            print("   + " + n)
+        if res["vorhanden"]:
+            print(f"ℹ️  {len(res['vorhanden'])} schon vorhanden (nicht überschrieben): " + ", ".join(res["vorhanden"]))
+        for name, why in res["abgelehnt"]:
+            print(f"⛔ abgelehnt: {name} – {why}")
+        print("Öffne jetzt im Browser das Second Brain: http://127.0.0.1:8765/gehirn")
+        return
     if cmd == "vorlesen":
         return read_aloud(" ".join(argv[2:]))
     if cmd == "secret":

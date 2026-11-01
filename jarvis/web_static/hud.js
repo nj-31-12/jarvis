@@ -18,7 +18,7 @@
     if (!ctx) { return null; }
     var s = { canvas: canvas, ctx: ctx, w: 0, h: 0, dpr: 1 };
     s.resize = function () {
-      s.dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      s.dpr = s.low ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
       s.w = canvas.clientWidth; s.h = canvas.clientHeight;
       canvas.width = Math.max(1, Math.round(s.w * s.dpr)); canvas.height = Math.max(1, Math.round(s.h * s.dpr));
       ctx.setTransform(s.dpr, 0, 0, s.dpr, 0, 0);
@@ -30,14 +30,25 @@
     return s;
   }
 
-  function animate(step, s) {
-    var last = 0, alive = true;
+  function animate(step, s, maxFps) {
+    var last = 0, alive = true, visible = true, slow = 0, minGap = maxFps ? 1000 / maxFps - 2 : 0;
+    // Stand 17: Nicht sichtbare Flächen (weggescrollt) rechnen nicht. Ist der Rechner zu langsam,
+    // schaltet die Darstellung automatisch eine Stufe herunter (s.low = true).
+    if (s && window.IntersectionObserver) {
+      new IntersectionObserver(function (en) { visible = en[0].isIntersecting; }).observe(s.canvas);
+    }
     function frame(t) {
       if (!alive) { return; }
       requestAnimationFrame(frame);
-      if (document.hidden) { return; }
+      if (document.hidden || !visible) { last = 0; return; }
       if (s && !s.check()) { return; }                                  // unsichtbar: nichts zeichnen
-      var dt = Math.min(0.05, (t - (last || t)) / 1000); last = t;
+      if (minGap && last && t - last < minGap) { return; }               // Hintergrund-Effekt: 30 Bilder/s reichen
+      var dt = Math.min(0.05, (t - (last || t)) / 1000);
+      if (s && last) {
+        slow = dt > (minGap ? 0.045 : 0.03) ? slow + 1 : Math.max(0, slow - 1);
+        if (slow > 45 && !s.low) { s.low = true; s.resize(); }           // ca. 1,5 s ruckelig → leichter zeichnen
+      }
+      last = t;
       step(dt, t);
     }
     requestAnimationFrame(frame);
@@ -89,38 +100,58 @@
       pinch: function (d) { cam.zoom = Math.max(0.6, Math.min(2.2, cam.zoom * Math.exp(-d * 0.01))); }
     });
     var label = canvas.getAttribute('data-label') || 'JARVIS';
+    // Ziffern einmal vorzeichnen (Sprites): drawImage ist viel schneller als fillText bei jedem Bild
+    var SPR = 32, sprites = { c: [], w: [] };
+    ['c', 'w'].forEach(function (k) {
+      for (var d = 0; d < 10; d++) {
+        var o = document.createElement('canvas'); o.width = o.height = SPR;
+        var x = o.getContext('2d'); x.font = '26px Menlo, Monaco, monospace'; x.textAlign = 'center'; x.textBaseline = 'middle';
+        x.fillStyle = k === 'c' ? 'rgb(' + CYAN + ')' : '#e8fbff'; x.fillText(String(d), SPR / 2, SPR / 2 + 1);
+        sprites[k].push(o);
+      }
+    });
+    var deco = null;
+    function makeDeco(R) {                                             // einmal zeichnen, danach nur kopieren
+      var out = { R: Math.round(R) };
+      var fs = Math.max(12, Math.round(R * 0.16)), lb = document.createElement('canvas');
+      lb.width = Math.ceil(fs * label.length * 0.9 + 60); lb.height = Math.ceil(fs * 2.4);
+      var y = lb.getContext('2d');
+      y.font = '600 ' + fs + 'px -apple-system, Helvetica, Arial, sans-serif'; y.textAlign = 'center'; y.textBaseline = 'middle';
+      y.fillStyle = 'rgba(232,251,255,0.95)'; y.shadowColor = 'rgba(' + CYAN + ',0.9)'; y.shadowBlur = 18;
+      y.fillText(label, lb.width / 2, lb.height / 2);
+      out.label = lb;
+      return out;
+    }
     animate(function (dt, t) {
       var ctx = s.ctx, w = s.w, h = s.h, R = Math.min(w, h) * 0.36 * cam.zoom;
       cam.yaw += cam.vy; cam.pitch += cam.vp; cam.vy *= 0.96; cam.vp *= 0.9;
       if (!reduce && c.idle()) { cam.vy += (0.004 - cam.vy) * 0.02; }
       cam.pitch = Math.max(-1.2, Math.min(1.2, cam.pitch));
       if (!reduce && Math.random() < 0.6) { pts[Math.floor(Math.random() * N)].d = String(Math.floor(Math.random() * 10)); }
-      ctx.clearRect(0, 0, w, h);
-      var g = ctx.createRadialGradient(w / 2, h / 2, R * 0.1, w / 2, h / 2, R * 1.5);
-      g.addColorStop(0, 'rgba(' + CYAN + ',0.18)'); g.addColorStop(1, 'rgba(' + CYAN + ',0)');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+      ctx.clearRect(0, 0, w, h);                                       // Leuchten dahinter kommt aus CSS (statisch)
+      if (!deco || deco.R !== Math.round(R)) { deco = makeDeco(R); }
       var cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw), cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      for (var i = 0; i < N; i++) {
+      var step = s.low ? 2 : 1;
+      for (var i = 0; i < N; i += step) {
         var p = pts[i], x1 = p.x * cy + p.z * sy, z1 = -p.x * sy + p.z * cy, y2 = p.y * cp - z1 * sp, z2 = p.y * sp + z1 * cp;
         var depth = (z2 + 1) / 2;                                     // 0 hinten … 1 vorne
-        var size = 7 + 9 * depth;
-        ctx.font = size.toFixed(0) + 'px Menlo, Monaco, monospace';
-        ctx.fillStyle = 'rgba(' + (depth > 0.85 ? '232,251,255' : CYAN) + ',' + (0.15 + 0.85 * depth * depth).toFixed(2) + ')';
-        ctx.fillText(p.d, w / 2 + x1 * R, h / 2 - y2 * R);
+        var size = (7 + 9 * depth) * 1.25;
+        ctx.globalAlpha = 0.15 + 0.85 * depth * depth;
+        ctx.drawImage(sprites[depth > 0.85 ? 'w' : 'c'][+p.d], w / 2 + x1 * R - size / 2, h / 2 - y2 * R - size / 2, size, size);
       }
-      // Ringe und Kern
+      ctx.globalAlpha = 1;
+      // Ringe direkt zeichnen (gemessen schneller als gedrehte Bilder), Schriftzug vorgezeichnet mit Leuchten
       ctx.lineWidth = 1.2;
       for (var k = 0; k < 3; k++) {
+        var a0 = (t / (2000 + k * 900)) * (k === 1 ? -1 : 1);
         ctx.strokeStyle = 'rgba(' + (k === 1 ? ORANGE : CYAN) + ',' + (0.5 - k * 0.12) + ')';
         ctx.setLineDash(k === 0 ? [40, 12, 6, 12] : k === 1 ? [3, 9] : [1, 7]);
-        ctx.beginPath(); ctx.arc(w / 2, h / 2, R * (1.15 + k * 0.1), (t / (2000 + k * 900)) * (k === 1 ? -1 : 1), (t / (2000 + k * 900)) * (k === 1 ? -1 : 1) + Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(w / 2, h / 2, R * (1.15 + k * 0.1), a0, a0 + Math.PI * 2); ctx.stroke();
       }
       ctx.setLineDash([]);
-      ctx.font = '600 ' + Math.round(R * 0.16) + 'px -apple-system, Helvetica, Arial, sans-serif';
-      ctx.fillStyle = 'rgba(232,251,255,0.95)'; ctx.shadowColor = 'rgba(' + CYAN + ',0.9)'; ctx.shadowBlur = 18;
-      ctx.fillText(label, w / 2, h / 2); ctx.shadowBlur = 0;
-    }, s);
+      ctx.drawImage(deco.label, w / 2 - deco.label.width / 2, h / 2 - deco.label.height / 2);
+    }, s, 30);
   }
 
   // ------------------------------------------------------------------ 2. Galaxie-Strudel (Portal + Denken)
@@ -132,7 +163,8 @@
   function drawSwirl(s, stars, speed, inward, tilt, alpha) {
     var ctx = s.ctx, w = s.w, h = s.h, cx = w / 2, cy = h / 2;
     ctx.lineCap = 'round';
-    for (var i = 0; i < stars.length; i++) {
+    var inc = s.low ? 2 : 1;
+    for (var i = 0; i < stars.length; i += inc) {
       var st = stars[i], x0 = cx + Math.cos(st.ang) * st.r, y0 = cy + Math.sin(st.ang) * st.r * tilt;
       st.ang += speed * st.sp / Math.max(0.25, st.r / (Math.min(w, h) * 0.5));
       st.r *= (1 - inward);
@@ -147,7 +179,7 @@
   function swirl(canvas) {
     var s = setup(canvas); if (!s) { return; }
     var stars = makeStars(70, 16);
-    animate(function () { s.ctx.clearRect(0, 0, s.w, s.h); drawSwirl(s, stars, reduce ? 0 : 0.09, 0.01, 1, 1); }, s);
+    animate(function () { s.ctx.clearRect(0, 0, s.w, s.h); drawSwirl(s, stars, reduce ? 0 : 0.09, 0.01, 1, 1); }, s, 30);
   }
 
   function portal(holder) {
@@ -184,7 +216,7 @@
   }
 
   // ------------------------------------------------------------------ 3. Datentunnel (Second Brain)
-  var KIND = { notiz: '159,220,255', aufgabe: '255,209,102', lektion: '199,146,234', recherche: ORANGE };
+  var KIND = { notiz: '159,220,255', aufgabe: '255,209,102', lektion: '199,146,234', recherche: ORANGE, strategie: '255,107,203' };
   function tunnel(canvas) {
     var s = setup(canvas); if (!s) { return; }
     var tip = canvas.parentNode.querySelector('.b3-tip');
@@ -232,7 +264,7 @@
         (data.notes || []).slice(0, 120).forEach(function (n, i) {
           var wall = i % 4, z = 3 + i * (LEN - 6) / Math.max(1, Math.min(120, data.notes.length)), u = ((i * 37) % 10) / 10 - 0.45;
           var pos = wall < 2 ? [wall ? W2 * 0.92 : -W2 * 0.92, u * H2 * 1.4, z] : [u * W2 * 1.4, wall === 2 ? H2 * 0.9 : -H2 * 0.9, z];
-          items.push({ p: pos, title: n.title, sub: ({ notiz: 'Notiz', aufgabe: 'Aufgabe', lektion: 'Lektion', recherche: 'Recherche' })[n.kind] || 'Notiz',
+          items.push({ p: pos, title: n.title, sub: ({ notiz: 'Notiz', aufgabe: 'Aufgabe', lektion: 'Lektion', recherche: 'Recherche', strategie: 'Strategie' })[n.kind] || 'Notiz',
             color: KIND[n.kind] || KIND.notiz, url: '/wissen/notiz?id=' + encodeURIComponent(n.id) });
         });
       });
@@ -252,7 +284,7 @@
       }
       // Leiterbahnen
       ctx.lineWidth = 1;
-      for (i = 0; i < traces.length; i++) {
+      for (i = 0; i < traces.length; i += (s.low ? 2 : 1)) {
         var tr = traces[i]; if (tr[0][2] < camZ - 1 || tr[0][2] > camZ + 22) { continue; }
         var p0 = proj(tr[0][0], tr[0][1], tr[0][2]), p1 = proj(tr[1][0], tr[1][1], tr[1][2]), p2 = proj(tr[2][0], tr[2][1], tr[2][2]);
         if (!p0 || !p1 || !p2) { continue; }

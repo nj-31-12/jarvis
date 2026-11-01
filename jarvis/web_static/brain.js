@@ -15,7 +15,7 @@
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   var COLORS = { area: { aktiv: '#4fe3ff', laufend: '#4fe3ff', Ausbildung: '#73d29b', Idee: '#ff9f43', 'im Aufbau': '#ff9f43', Thema: '#7cf0c5' },
-    notiz: '#9fdcff', aufgabe: '#ffd166', lektion: '#c792ea', recherche: '#ff9f43' };
+    notiz: '#9fdcff', aufgabe: '#ffd166', lektion: '#c792ea', recherche: '#ff9f43', strategie: '#ff6bcb' };
   // Plätze für Bereiche und Themen: gleichmäßig über die Hirnrinde verteilt, für jede Anzahl (nicht festgelegt)
   function anchors(n) {
     var out = [], gold = Math.PI * (3 - Math.sqrt(5));
@@ -98,7 +98,7 @@
       var spread = areaIndex[m.area] !== undefined ? 0.26 : 0.42;
       var p = inside([base.x + gauss() * spread * 0.5, base.y + gauss() * spread * 0.5, base.z + gauss() * spread * 0.5]);
       nodes.push({ x: p[0], y: p[1], z: p[2], r: 0.012, color: COLORS[m.kind] || COLORS.notiz,
-        label: m.title, sub: ({ notiz: 'Notiz', aufgabe: 'Aufgabe', lektion: 'Lektion', recherche: 'Recherche' })[m.kind] || 'Notiz',
+        label: m.title, sub: ({ notiz: 'Notiz', aufgabe: 'Aufgabe', lektion: 'Lektion', recherche: 'Recherche', strategie: 'Strategie' })[m.kind] || 'Notiz',
         url: '/wissen/notiz?id=' + encodeURIComponent(m.id) });
       edges.push([areaIndex[m.area] !== undefined ? areaIndex[m.area] : 0, nodes.length - 1, 0]);
     });
@@ -135,10 +135,18 @@
 
   // ---------------------------------------------------------------- Zeichnen
   var tmpA = {}, tmpB = {};
+  var onScreen = true, slowFrames = 0, low = false;
+  if (window.IntersectionObserver) {
+    new IntersectionObserver(function (en) { onScreen = en[0].isIntersecting; }).observe(canvas);
+  }
   function frame(t) {
     if (!ready) { return; }
     requestAnimationFrame(frame);
-    if (document.hidden) { return; }
+    // Stand 17: nicht rechnen, wenn weggescrollt, Tab im Hintergrund oder Ansicht „Datentunnel“ aktiv
+    if (document.hidden || !onScreen || root.offsetParent === null) { lastT = 0; return; }
+    if (root.clientWidth !== W || root.clientHeight !== H) { resize(); }
+    if (lastT) { slowFrames = (t - lastT) > 30 ? slowFrames + 1 : Math.max(0, slowFrames - 1); }
+    if (slowFrames > 45 && !low) { low = true; DPR = 1; resize(); }
     var dt = Math.min(0.05, (t - (lastT || t)) / 1000); lastT = t;
     // Trägheit und sanftes Schweben
     cam.yaw += cam.vyaw; cam.pitch += cam.vpitch; cam.dist += cam.vdist;
@@ -150,20 +158,18 @@
 
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     ctx.clearRect(0, 0, W, H);
-    var g = ctx.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, Math.max(W, H) * 0.6);
-    g.addColorStop(0, 'rgba(79,227,255,0.10)'); g.addColorStop(1, 'rgba(5,11,18,0)');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // Leuchten im Hintergrund kommt aus CSS (.brain3d), nicht mehr bei jedem Bild neu gezeichnet
 
     // Windungen (ein Pfad = schnell)
     ctx.lineWidth = 0.7; ctx.strokeStyle = 'rgba(79,227,255,0.22)'; ctx.beginPath();
-    for (var i = 0; i < mesh.length; i++) {
+    for (var i = 0; i < mesh.length; i += (low ? 2 : 1)) {
       var p = surf[mesh[i][0]], q = surf[mesh[i][1]];
       project(p[0], p[1], p[2], tmpA); project(q[0], q[1], q[2], tmpB);
       if (tmpA.v && tmpB.v) { ctx.moveTo(tmpA.x, tmpA.y); ctx.lineTo(tmpB.x, tmpB.y); }
     }
     ctx.stroke();
     ctx.fillStyle = 'rgba(140,235,255,0.55)';
-    for (i = 0; i < surf.length; i++) {
+    for (i = 0; i < surf.length; i += (low ? 2 : 1)) {
       project(surf[i][0], surf[i][1], surf[i][2], tmpA);
       if (tmpA.v) { var r = Math.max(0.5, tmpA.s * 0.004); ctx.globalAlpha = fade(tmpA.d) * 0.7; ctx.fillRect(tmpA.x - r / 2, tmpA.y - r / 2, r, r); }
     }
@@ -230,7 +236,7 @@
 
   // ---------------------------------------------------------------- Größe
   function resize() {
-    DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+    DPR = low ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
     W = root.clientWidth; H = root.clientHeight;
     canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
   }

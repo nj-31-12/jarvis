@@ -36,7 +36,7 @@ RATE_LIMIT_SECONDS = 60         # … pro Minute (schützt vor Endlosschleifen u
 CONVERSATION_ID = re.compile(r"[0-9a-f]{12}")
 
 # Befehle, die im Browser-Chat erlaubt sind. Alles andere wird freundlich abgelehnt.
-ALLOWED_COMMANDS = {"/hilfe", "/help", "/start", "/idee", "/post", "/mail", "/notiz", "/ziel", "/suche",
+ALLOWED_COMMANDS = {"/hilfe", "/help", "/start", "/idee", "/strategie", "/post", "/mail", "/notiz", "/ziel", "/suche",
                     "/offen", "/status", "/bereiche", "/stop", "/wissen", "/profile", "/skills"}
 CONTEXT_NOTES = 3               # so viele passende Notizen bekommt das Modell als Wissen
 # Kommen im Browser erst in späteren Schritten (im Terminal weiterhin verfügbar)

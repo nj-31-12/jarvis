@@ -72,6 +72,8 @@ def _kind(note) -> str:
     meta = note.meta if isinstance(note.meta, dict) else {}
     if str(meta.get("typ", "")).lower() == LESSON_TYPE:
         return "lektion"
+    if str(meta.get("typ", "")).lower() == "strategie":
+        return "strategie"
     if note.title.lower().startswith("recherche") or "recherche" in str(meta.get("tags", "")).lower():
         return "recherche"
     if "- [ ]" in note.text:
@@ -192,6 +194,12 @@ class BrainPages:
         lesson_flash = (f'<p class="{"success" if lflash.startswith("🧠") else "error"}" role="status">'
                         f'{html.escape(lflash)}</p>') if lflash else ""
         research = [n for n in kb.recent(limit=60) if _kind(n) == "recherche"][:6]
+        strategies = [n for n in kb.recent(limit=80) if _kind(n) == "strategie"][:6]
+        strategy_html = li([f'<li><a href="/wissen/notiz?id={html.escape(n.id)}">{html.escape(n.title)}</a></li>'
+                            for n in strategies], "Noch keine Strategien.")
+        sflash = session.data.pop("strategy_flash", "")
+        strategy_flash = (f'<p class="{"success" if sflash.startswith("🧭") else "error"}" role="status">'
+                          f'{html.escape(sflash)}</p>') if sflash else ""
         research_html = li([f'<li><a href="/wissen/notiz?id={html.escape(n.id)}">{html.escape(n.title)}</a></li>'
                             for n in research], "Noch keine Recherchen.")
         return f"""<header class="top brain-top"><div><p class="eyebrow"><span class="live"></span>JARVIS · Second Brain</p>
@@ -207,7 +215,7 @@ class BrainPages:
 <div class="brain3d" id="brain3d" data-src="/gehirn/daten"><canvas aria-label="3D-Gehirn: Bereiche und Notizen als Neuronen"></canvas>
 <div class="b3-tip" hidden></div>
 <div class="b3-help"><b>Steuerung</b> · Zwei Finger wischen: drehen · Zwei Finger auf/zu: hineinfliegen · Shift + wischen: hindurchfliegen · Klick: öffnen · Doppelklick: zurück</div>
-<div class="b3-legend"><span class="k-area">Bereich</span><span class="k-notiz">Notiz</span><span class="k-aufgabe">Aufgabe</span><span class="k-lektion">Lektion</span><span class="k-recherche">Recherche</span><span class="k-thema">Lebensthema</span></div></div>
+<div class="b3-legend"><span class="k-area">Bereich</span><span class="k-notiz">Notiz</span><span class="k-aufgabe">Aufgabe</span><span class="k-lektion">Lektion</span><span class="k-recherche">Recherche</span><span class="k-strategie">Strategie</span><span class="k-thema">Lebensthema</span></div></div>
 <div class="brain-fallback">{brain_map(areas, stats.get('visible', 0))}</div>
 <p class="hint">Jeder leuchtende Knoten ist ein Geschäftsbereich, die kleinen Lichter sind deine Notizen, Lichtimpulse zeigen Verbindungen. Vertrauliche Notizen (z. B. aus 90_Privat) werden nie gezeigt.</p></section>
 <div class="brain-grid">
@@ -227,10 +235,31 @@ class BrainPages:
 <button type="submit" {'disabled' if kill else ''}>Lektion merken</button></form>
 <ul class="list">{lesson_html}</ul>
 <p class="hint">Gemerkte Lektionen beachtet JARVIS bei jeder Antwort. Entfernen: die Notiz in Obsidian löschen. Sicherheitsregeln können Lektionen nicht aufheben.</p></section>
+<section class="panel strategy" id="strategie"><h2>🧭 Strategie-Werkstatt</h2>{strategy_flash}
+<form class="capture" method="post" action="/gehirn/strategie"><input type="hidden" name="csrf" value="{csrf}">
+<label for="strat">Erzähl JARVIS deine Geschäftsidee oder Strategie</label>
+<textarea id="strat" name="text" rows="4" maxlength="3000" required placeholder="z. B. QR-Code-Stempelkarten für Restaurants: Gäste sammeln bei jedem Besuch Stempel. Dazu biete ich Restaurants automatisierte Webseiten und Betreuung an."></textarea>
+<button type="submit" {'disabled' if kill else ''}>Durch 11 Experten-Brillen prüfen</button></form>
+<p class="hint">Markt · Wettbewerb · Preise · Kosten · Marketing · Technik · Recht · Risiken · 90-Tage-Plan · JARVIS-Urteil. Das Ergebnis landet als Notiz im Second Brain (rosa im Gehirn). Mit echter KI kostet eine Analyse ca. 0,2 Cent.</p>
+<ul class="list hits">{strategy_html}</ul></section>
 <section class="panel"><h2>Denken &amp; Forschen</h2><ul class="list hits">{research_html}</ul>
 <p class="hint">Recherche-Ergebnisse der Nachtarbeit erscheinen hier und im Gehirn als orange Neuronen. Neue Recherchen: Befehl <code>/nacht</code> im Chat (nutzt die KI nur, wenn „research“ freigegeben ist).</p></section>
 </div>
 <script src="/static/brain.js" defer></script><script src="/static/hud.js" defer></script>"""
+
+    def _brain_strategy(self, session, text: str) -> str:
+        """Gibt die Adresse zurück, zu der danach weitergeleitet wird (neue Notiz oder zurück zur Werkstatt)."""
+        from .knowledge import note_id_for
+        from .strategy import run_strategy
+        try:
+            msg, path, _ = run_strategy(self.jarvis, text)
+        except Exception as exc:  # noqa: BLE001 – z. B. Kostenbremse, gesperrtes Modell: verständlich melden
+            msg, path = f"⚠️ {str(exc)[:200]}", None
+        session.data["strategy_flash"] = msg
+        if path is None:
+            return "/gehirn#strategie"
+        rel = path.resolve().relative_to(self.jarvis.vault.root).as_posix()
+        return "/wissen/notiz?id=" + note_id_for(rel)
 
     def _brain_lesson(self, session, text: str) -> None:
         session.data["lesson_flash"] = add_lesson(self.jarvis, text)
