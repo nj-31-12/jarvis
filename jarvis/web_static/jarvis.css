@@ -503,3 +503,82 @@ body.is-thinking .core-state .st-idle,body.speaking .core-state .st-idle,body.li
 body.is-thinking .core-state .st-think{display:inline;color:var(--accent2)}
 body.speaking:not(.is-thinking) .core-state .st-speak{display:inline}
 body.listening:not(.is-thinking):not(.speaking) .core-state .st-listen{display:inline;color:var(--accent2)}
+/* ======================================================================
+   Stand 20 – Lila Glas-Design (alle Seiten außer Chat): schwebende Glasflächen, leuchtendes Lila
+   ====================================================================== */
+body.theme-glass{--accent:#a855f7;--accent2:#e879f9;--glow:rgba(168,85,247,.38);--line:rgba(255,255,255,.08);
+--panel:rgba(22,14,36,.72);--fg:#efe9ff;--muted:#a99bc4;--bg:#07040d;--fx-rgb:168,85,247;--fx2-rgb:232,121,249;
+background-color:var(--bg);
+background-image:radial-gradient(ellipse at 20% -10%,rgba(168,85,247,.22),transparent 55%),
+radial-gradient(ellipse at 90% 110%,rgba(124,58,237,.18),transparent 55%)}
+body.theme-glass::before{background:none}
+body.theme-glass::after{background:linear-gradient(180deg,transparent,rgba(168,85,247,.05),transparent)}
+/* Glasflächen mit Tiefe */
+.theme-glass .panel,.theme-glass .hud-card,.theme-glass .features,.theme-glass .flow,.theme-glass .tile,.theme-glass .brain-kpis div,.theme-glass .hud-stats div{
+background:linear-gradient(150deg,rgba(255,255,255,.085),rgba(255,255,255,.025) 38%,rgba(18,10,32,.78));
+border:1px solid rgba(255,255,255,.08);border-top-color:rgba(255,255,255,.16);border-radius:18px;
+box-shadow:0 30px 60px -32px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.07),0 0 0 1px rgba(168,85,247,.05)}
+.theme-glass .panel::before,.theme-glass .panel::after{display:none}
+.theme-glass .panel{transition:transform .35s ease,box-shadow .35s ease}
+.theme-glass .panel:hover{transform:perspective(1200px) rotateX(1.2deg) translateY(-2px);box-shadow:0 40px 70px -34px rgba(0,0,0,.95),0 0 40px -18px rgba(168,85,247,.5),inset 0 1px 0 rgba(255,255,255,.09)}
+.theme-glass h1{text-shadow:0 0 26px rgba(168,85,247,.45)}
+.theme-glass h2,.theme-glass .eyebrow{color:#c4a5ff}
+.theme-glass .live{background:#e879f9;box-shadow:0 0 10px #e879f9}
+/* Navigation als Glasleiste, aktiver Punkt als leuchtende Lila-Kapsel */
+.theme-glass .nav{background:rgba(14,8,24,.75);border:1px solid rgba(255,255,255,.07);border-radius:18px;margin:12px auto 0;
+box-shadow:0 20px 40px -24px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.07)}
+.theme-glass .nav a{border-radius:12px;padding:7px 14px}
+.theme-glass .nav a[aria-current="page"]{color:#fff;border:1px solid rgba(216,180,254,.5);
+background:linear-gradient(180deg,rgba(168,85,247,.95),rgba(124,58,237,.85));box-shadow:0 0 22px rgba(168,85,247,.65),inset 0 1px 0 rgba(255,255,255,.35)}
+.theme-glass .nav .brand{color:#d8b4fe}
+/* Knöpfe glänzend mit Leuchten */
+.theme-glass button,.theme-glass a.button{color:#fff;border-radius:14px;background:linear-gradient(180deg,#b57bff,#7c3aed);
+box-shadow:0 0 24px rgba(168,85,247,.55),inset 0 1px 0 rgba(255,255,255,.35),inset 0 -2px 0 rgba(0,0,0,.2)}
+.theme-glass button.ghost{background:rgba(255,255,255,.04);color:var(--fg);border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.theme-glass button.stop{background:linear-gradient(180deg,#ff6b6b,#d62f3c);box-shadow:0 0 22px rgba(255,90,90,.45)}
+/* Eingaben aus dunklem Glas */
+.theme-glass input,.theme-glass textarea,.theme-glass select{background:rgba(10,6,18,.75);border:1px solid rgba(255,255,255,.1);border-radius:14px;color:var(--fg)}
+.theme-glass select{font:inherit;padding:10px 12px;width:100%}
+.theme-glass input:focus,.theme-glass textarea:focus,.theme-glass select:focus{outline:none;border-color:#a855f7;box-shadow:0 0 0 1px #a855f7,0 0 22px rgba(168,85,247,.35)}
+/* Kacheln: Symbol in leuchtendem Lila-Quadrat */
+.theme-glass .tile .t-icon{display:grid;place-items:center;width:46px;height:46px;border-radius:14px;color:#fff;font-size:1.3rem;
+background:linear-gradient(180deg,#b57bff,#7c3aed);box-shadow:0 0 22px rgba(168,85,247,.6),inset 0 1px 0 rgba(255,255,255,.35);margin-bottom:6px}
+.theme-glass .tile:hover,.theme-glass .tile:focus-visible{transform:perspective(900px) translateY(-6px) rotateX(8deg);box-shadow:0 30px 50px -24px rgba(168,85,247,.55)}
+/* Startseite in Lila */
+.theme-glass .poster-title{background:linear-gradient(180deg,#fbf7ff 0%,#e3ccff 36%,#a855f7 64%,#5b21b6 100%);-webkit-background-clip:text;background-clip:text;
+filter:drop-shadow(0 0 24px rgba(168,85,247,.55))}
+.theme-glass .orb-ring{border-color:rgba(168,85,247,.6);box-shadow:0 0 14px rgba(168,85,247,.2),inset 0 0 14px rgba(168,85,247,.15)}
+.theme-glass .orb-ring.r2{border-color:rgba(232,121,249,.55)}
+.theme-glass .orb-ring.r3{border-color:rgba(168,85,247,.25) rgba(216,180,254,.7) rgba(168,85,247,.25) rgba(216,180,254,.7)}
+.theme-glass .flow li::before{border-color:#a855f7;color:#d8b4fe;box-shadow:0 0 16px rgba(168,85,247,.45),inset 0 0 10px rgba(168,85,247,.25)}
+.theme-glass .features svg{stroke:#c4a5ff;filter:drop-shadow(0 0 6px rgba(168,85,247,.7))}
+.theme-glass .meter i,.theme-glass .bars .bar i{background:linear-gradient(90deg,#7c3aed,#e879f9);box-shadow:0 0 10px rgba(168,85,247,.6)}
+.theme-glass .bars .bar i{background:linear-gradient(0deg,rgba(124,58,237,.4),#c084fc)}
+.theme-glass .wave i{background:#c084fc}
+.theme-glass .pill{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08)}
+.theme-glass .brain-stage{background:radial-gradient(ellipse at 50% 55%,rgba(168,85,247,.14),transparent 65%),rgba(14,8,24,.8)}
+.theme-glass .brain3d{background:radial-gradient(ellipse at 50% 50%,rgba(168,85,247,.10),rgba(7,4,13,0) 70%)}
+.theme-glass .b3-tip{background:rgba(14,8,24,.94);border-color:#a855f7;box-shadow:0 0 18px rgba(168,85,247,.4)}
+.theme-glass .view-switch button[aria-pressed="true"]{background:linear-gradient(180deg,rgba(168,85,247,.9),rgba(124,58,237,.8));color:#fff}
+.theme-glass mark{background:#4c1d95}
+/* Team-Seite */
+.platform-stage{padding:0;overflow:hidden}
+.platform{position:relative;height:560px;background:radial-gradient(ellipse at 50% 60%,rgba(168,85,247,.12),rgba(7,4,13,0) 70%)}
+@media (max-width:720px){.platform{height:420px}}
+.platform canvas{width:100%;height:100%;display:block;touch-action:none;cursor:grab;outline:none}
+.team-intro{max-width:420px;margin:0}
+.members{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.member{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);transition:box-shadow .3s,transform .3s}
+.member.focus{box-shadow:0 0 0 2px #a855f7,0 0 30px rgba(168,85,247,.5);transform:translateY(-3px)}
+.member b{display:block}.member span{color:var(--muted);font-size:.82rem}.member small{color:var(--muted);font-size:.72rem;font-family:var(--mono)}
+.avatar{flex:0 0 42px;height:42px;border-radius:14px;display:grid;place-items:center;font-weight:700;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+.cat-strategie .avatar,.avatar.cat-strategie{background:linear-gradient(180deg,#b57bff,#7c3aed);box-shadow:0 0 18px rgba(168,85,247,.5)}
+.avatar.cat-finanzen{background:linear-gradient(180deg,#ffc76b,#d98a12);box-shadow:0 0 18px rgba(255,176,46,.45)}
+.avatar.cat-marketing{background:linear-gradient(180deg,#f9a8d4,#db2777);box-shadow:0 0 18px rgba(244,114,182,.45)}
+.avatar.cat-technik{background:linear-gradient(180deg,#7ff0ff,#0891b2);box-shadow:0 0 18px rgba(79,227,255,.45)}
+.avatar.cat-persoenlich{background:linear-gradient(180deg,#9ff0c3,#16a34a);box-shadow:0 0 18px rgba(115,210,155,.45)}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 4px}
+.chips i{font-style:normal;font-size:.7rem;padding:2px 8px;border-radius:999px;background:rgba(168,85,247,.14);border:1px solid rgba(168,85,247,.3);color:#e9d5ff}
+/* Stand 20: Hintergrund-Leuchten nicht kacheln (alte Rasterregel hatte drei Größen) */
+body.theme-glass{background-size:100% 100%,100% 100%;background-repeat:no-repeat;background-attachment:fixed}
+body.theme-red{background-size:100% 100%,40px 40px,40px 40px;background-repeat:no-repeat,repeat,repeat}

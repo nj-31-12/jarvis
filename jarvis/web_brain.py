@@ -222,7 +222,7 @@ class BrainPages:
 <div class="b3-help"><b>Datentunnel</b> · Klicken, dann hoch/runter wischen: vor/zurück fliegen · Seitwärts: umsehen · Klick auf Licht: Notiz öffnen</div></div>
 <div class="brain3d" id="brain3d" data-src="/gehirn/daten"><canvas aria-label="3D-Gehirn: Bereiche und Notizen als Neuronen"></canvas>
 <div class="b3-tip" hidden></div>
-<div class="b3-help"><b>Steuerung</b> · Zwei Finger wischen: drehen · Zwei Finger auf/zu: hineinfliegen · Shift + wischen: hindurchfliegen · Klick: öffnen · Doppelklick: zurück</div>
+<div class="b3-help"><b>Steuerung</b> · Zwei Finger auf/zu: in den Kopf hineinzoomen · Wischen: drehen · Klick auf Licht: Gedankengang leuchtet · nochmal klicken: öffnen · Doppelklick: zurück</div>
 <div class="b3-legend"><span class="k-area">Bereich</span><span class="k-notiz">Notiz</span><span class="k-aufgabe">Aufgabe</span><span class="k-lektion">Lektion</span><span class="k-recherche">Recherche</span><span class="k-strategie">Strategie</span><span class="k-thema">Lebensthema</span></div></div>
 <div class="brain-fallback">{brain_map(areas, stats.get('visible', 0))}</div>
 <p class="hint">Jeder leuchtende Knoten ist ein Geschäftsbereich, die kleinen Lichter sind deine Notizen, Lichtimpulse zeigen Verbindungen. Vertrauliche Notizen (z. B. aus 90_Privat) werden nie gezeigt.</p></section>

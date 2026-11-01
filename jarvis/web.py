@@ -24,6 +24,7 @@ from typing import Callable
 from urllib.parse import parse_qs, urlsplit
 
 from .web_brain import BrainPages
+from .web_team import TeamPages
 
 from . import web_auth as wa
 from .chat import MAX_MESSAGE_CHARS, ROLE_JARVIS, ROLE_SYSTEM, ROLE_USER, ChatError, ChatService, ChatStore
@@ -440,7 +441,7 @@ class TaskPages:
         return redirect("/aufgaben")
 
 
-class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
+class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages):
     def __init__(self, cfg: dict, auth: wa.AuthStore, jarvis=None, clock: Callable[[], float] = time.time):
         self.cfg = cfg
         self.port = int(cfg["web"]["port"])
@@ -528,6 +529,21 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
             if not session:
                 return redirect("/login")
             return self._home(session)
+        if path in ("/team", "/team/runde", "/team/daten"):
+            if not session:
+                return redirect("/login")
+            if self.jarvis is None:
+                return Response(503, self._page("Team", "<p>Nicht verfügbar.</p>", session=session))
+            if path == "/team" and method == "GET":
+                return Response(200, self._page("Team", self._team_page(session, html.escape(session.csrf)),
+                                                body_class="wide", session=session, active="team"))
+            if path == "/team/daten" and method == "GET":
+                return Response(200, json.dumps(self._team_data(), ensure_ascii=False), "application/json; charset=utf-8")
+            if path == "/team/runde" and method == "POST":
+                if not wa.check_csrf(session, field("csrf")):
+                    return Response(403, "Ungültiges Prüfzeichen.", "text/plain; charset=utf-8")
+                return redirect(self._team_round(session, field("text"), field("kategorie")))
+            return Response(405, "Methode nicht erlaubt.", "text/plain; charset=utf-8")
         if path in ("/gehirn", "/gehirn/notiz", "/gehirn/lektion", "/gehirn/daten", "/gehirn/strategie",
                     "/gehirn/coach"):
             if not session:
@@ -681,7 +697,7 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
               active: str = "") -> str:
         nav = ""
         if session is not None:
-            links = [("/", "Übersicht", "home"), ("/chat?portal=1", "Chat", "chat"), ("/gehirn", "Second Brain", "gehirn"),
+            links = [("/", "Übersicht", "home"), ("/chat?portal=1", "Chat", "chat"), ("/gehirn", "Second Brain", "gehirn"), ("/team", "Team", "team"),
                      ("/wissen", "Wissen", "wissen"),
                      ("/freigaben", "Freigaben", "freigaben"), ("/skills", "Skills", "skills"),
                      ("/aufgaben", "Aufgaben", "aufgaben")]
@@ -690,6 +706,8 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
                              for href, label, key in links)
                    + f"<form method=\"post\" action=\"/logout\"><input type=\"hidden\" name=\"csrf\" "
                      f"value=\"{html.escape(session.csrf)}\"><button class=\"ghost\" type=\"submit\">Abmelden</button></form></nav>")
+        if "theme-red" not in body_class.split():           # Stand 20: lila Glas-Design für alle Seiten außer dem Chat
+            body_class = (body_class + " theme-glass").strip()
         return (f"<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\">"
                 f"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
                 f"<title>{html.escape(title)} · JARVIS</title><link rel=\"stylesheet\" href=\"/static/jarvis.css\">"

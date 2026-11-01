@@ -25,7 +25,14 @@
     }
     return out;
   }
-  var HOME = { yaw: 0.75, pitch: 0.18, dist: 2.25 };
+  // Stand 20: Start als Kopf im Profil (wie ein Röntgenbild). Hineinzoomen → Gehirn → dunkles Inneres.
+  var HOME = { yaw: 1.45, pitch: 0.06, dist: 3.7 };
+  var FX = (function () {
+    var v = window.getComputedStyle ? getComputedStyle(document.body).getPropertyValue('--fx-rgb').trim() : '';
+    return /^\d{1,3},\s*\d{1,3},\s*\d{1,3}$/.test(v) ? v.replace(/\s/g, '') : '79,227,255';
+  })();
+  COLORS.area.aktiv = COLORS.area.laufend = 'rgb(' + FX + ')';
+  var headRings = [], mouse = null, lit = {}, nearPts = [];
 
   var cam = { yaw: HOME.yaw, pitch: HOME.pitch, dist: HOME.dist, vyaw: 0, vpitch: 0, vdist: 0 };
   var surf = [], mesh = [], nodes = [], edges = [], pulses = [];
@@ -48,7 +55,32 @@
     if (pz > 0.4 && py < -0.1) { py += 0.08; }                   // Stirn
     return [px, py, pz];
   }
+  function buildHead() {
+    // Querschnitte (y, Breite, Tiefe, Versatz nach vorn): Schädel, Stirn, Augen, Nase, Mund, Kinn, Hals
+    var rows = [[1.02, 0.18, 0.22, 0], [0.85, 0.58, 0.82, 0], [0.55, 0.78, 1.1, 0.02], [0.22, 0.83, 1.18, 0.05],
+      [-0.08, 0.8, 1.15, 0.1], [-0.34, 0.72, 1.04, 0.17], [-0.6, 0.62, 0.9, 0.2], [-0.84, 0.5, 0.7, 0.2],
+      [-1.04, 0.38, 0.46, -0.08], [-1.4, 0.35, 0.38, -0.2], [-1.95, 0.44, 0.44, -0.26]];
+    function at(y) {
+      for (var i = 0; i < rows.length - 1; i++) {
+        var a = rows[i], b = rows[i + 1];
+        if (y <= a[0] && y >= b[0]) { var t = (a[0] - y) / (a[0] - b[0]); return [a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t]; }
+      }
+      return null;
+    }
+    for (var y = 1.0; y >= -1.95; y -= 0.11) {
+      var r = at(y); if (!r) { continue; }
+      var ring = [];
+      for (var k = 0; k < 40; k++) {
+        var an = k / 40 * 6.283, x = Math.cos(an) * r[0], z = Math.sin(an) * r[1] + r[2];
+        if (z > 0.5 && y < -0.12 && y > -0.5) { z += 0.2 * Math.cos((y + 0.31) * 8) * Math.max(0, Math.sin(an)) * (1 - Math.abs(Math.cos(an)) * 3 > 0 ? 1 : 0); } // Nase
+        if (z > 0.5 && y < -0.55 && y > -0.72) { z += 0.05; }                                        // Lippen
+        ring.push([x, y + 0.02, z]);
+      }
+      headRings.push(ring);
+    }
+  }
   function buildSurface() {
+    buildHead();
     var i, n = 950;
     for (i = 0; i < n; i++) { surf.push(brainPoint()); }
     for (i = 0; i < 150; i++) {                                   // Kleinhirn
@@ -159,19 +191,49 @@
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     ctx.clearRect(0, 0, W, H);
     // Leuchten im Hintergrund kommt aus CSS (.brain3d), nicht mehr bei jedem Bild neu gezeichnet
+    var headA = Math.max(0, Math.min(1, (cam.dist - 1.85) / 1.1));        // Kopf nur von außen sichtbar
+    var inside = Math.max(0, Math.min(1, (1.2 - cam.dist) / 0.55));       // 1 = ganz im Gehirn: dunkel
+    var dim = 1 - 0.72 * inside, now = performance.now(), LR = 150;
+    nearPts = [];
+    if (inside > 0) { ctx.fillStyle = 'rgba(3,2,8,' + (0.85 * inside).toFixed(2) + ')'; ctx.fillRect(0, 0, W, H); }
+    if (headA > 0.02) {                                                   // Kopf im Profil als Drahtgitter
+      ctx.lineWidth = 0.8; ctx.strokeStyle = 'rgba(' + FX + ',' + (0.2 * headA).toFixed(3) + ')'; ctx.beginPath();
+      for (var hr = 0; hr < headRings.length; hr++) {
+        var ringP = headRings[hr];
+        for (var hk = 0; hk <= ringP.length; hk++) {
+          var hp = ringP[hk % ringP.length]; project(hp[0], hp[1], hp[2], tmpA);
+          if (!tmpA.v) { continue; } if (hk) { ctx.lineTo(tmpA.x, tmpA.y); } else { ctx.moveTo(tmpA.x, tmpA.y); }
+        }
+      }
+      for (hk = 0; hk < 40; hk += 2) {                                   // Längslinien
+        for (hr = 0; hr < headRings.length; hr++) {
+          var hq = headRings[hr][hk]; project(hq[0], hq[1], hq[2], tmpA);
+          if (!tmpA.v) { continue; } if (hr) { ctx.lineTo(tmpA.x, tmpA.y); } else { ctx.moveTo(tmpA.x, tmpA.y); }
+        }
+      }
+      ctx.stroke();
+    }
 
     // Windungen (ein Pfad = schnell)
-    ctx.lineWidth = 0.7; ctx.strokeStyle = 'rgba(79,227,255,0.22)'; ctx.beginPath();
+    ctx.lineWidth = 0.7; ctx.strokeStyle = 'rgba(' + FX + ',' + (0.22 * dim).toFixed(3) + ')'; ctx.beginPath();
     for (var i = 0; i < mesh.length; i += (low ? 2 : 1)) {
       var p = surf[mesh[i][0]], q = surf[mesh[i][1]];
       project(p[0], p[1], p[2], tmpA); project(q[0], q[1], q[2], tmpB);
       if (tmpA.v && tmpB.v) { ctx.moveTo(tmpA.x, tmpA.y); ctx.lineTo(tmpB.x, tmpB.y); }
     }
     ctx.stroke();
-    ctx.fillStyle = 'rgba(140,235,255,0.55)';
+    ctx.fillStyle = 'rgba(' + FX + ',0.75)';
     for (i = 0; i < surf.length; i += (low ? 2 : 1)) {
       project(surf[i][0], surf[i][1], surf[i][2], tmpA);
-      if (tmpA.v) { var r = Math.max(0.5, tmpA.s * 0.004); ctx.globalAlpha = fade(tmpA.d) * 0.7; ctx.fillRect(tmpA.x - r / 2, tmpA.y - r / 2, r, r); }
+      if (tmpA.v) {
+        var r = Math.max(0.5, tmpA.s * 0.004), boost = 0;
+        if (mouse) {                                                       // die Maus ist ein Licht
+          var mdx = tmpA.x - mouse[0], mdy = tmpA.y - mouse[1], md = mdx * mdx + mdy * mdy;
+          if (md < LR * LR) { boost = Math.pow(1 - Math.sqrt(md) / LR, 2); if (nearPts.length < 80) { nearPts.push([tmpA.x, tmpA.y, md]); } }
+        }
+        ctx.globalAlpha = Math.min(1, fade(tmpA.d) * 0.7 * dim + boost * 0.9); r *= 1 + boost * 1.5;
+        ctx.fillRect(tmpA.x - r / 2, tmpA.y - r / 2, r, r);
+      }
     }
     ctx.globalAlpha = 1;
 
@@ -180,16 +242,23 @@
       var e = edges[i], a = nodes[e[0]], b = nodes[e[1]];
       project(a.x, a.y, a.z, tmpA); project(b.x, b.y, b.z, tmpB);
       if (!tmpA.v || !tmpB.v) { continue; }
-      ctx.globalAlpha = Math.min(fade(tmpA.d), fade(tmpB.d)) * (e[2] === 1 ? 0.55 : 0.28);
-      ctx.strokeStyle = e[2] === 1 ? '#4fe3ff' : (e[2] === 2 ? '#c792ea' : b.color);
-      ctx.lineWidth = e[2] === 1 ? 1.4 : 0.7;
+      var on = (lit[e[0]] > now) || (lit[e[1]] > now);
+      ctx.globalAlpha = on ? 0.95 : Math.min(fade(tmpA.d), fade(tmpB.d)) * (e[2] === 1 ? 0.55 : 0.28) * dim;
+      ctx.strokeStyle = on ? '#ffffff' : (e[2] === 1 ? 'rgb(' + FX + ')' : (e[2] === 2 ? '#c792ea' : b.color));
+      ctx.lineWidth = on ? 2.4 : (e[2] === 1 ? 1.4 : 0.7);
+      if (on) { ctx.shadowColor = b.color; ctx.shadowBlur = 12; }
       ctx.beginPath(); ctx.moveTo(tmpA.x, tmpA.y); ctx.lineTo(tmpB.x, tmpB.y); ctx.stroke();
+      if (on) { ctx.shadowBlur = 0; }
     }
     ctx.globalAlpha = 1;
 
     // Lichtimpulse: JARVIS „denkt“
     if (!reduce && edges.length) {
-      while (pulses.length < Math.min(45, edges.length * 2)) { pulses.push({ e: Math.floor(rnd() * edges.length), t: 0, v: 0.25 + rnd() * 0.6, dir: rnd() < 0.5 }); }
+      var litEdges = [];
+      for (var le = 0; le < edges.length && litEdges.length < 40; le++) { if (lit[edges[le][0]] > now || lit[edges[le][1]] > now) { litEdges.push(le); } }
+      while (pulses.length < Math.min(45, edges.length * 2)) {
+        pulses.push({ e: litEdges.length && rnd() < 0.6 ? litEdges[Math.floor(rnd() * litEdges.length)] : Math.floor(rnd() * edges.length), t: 0, v: 0.25 + rnd() * 0.6, dir: rnd() < 0.5 });
+      }
       for (i = pulses.length - 1; i >= 0; i--) {
         var pu = pulses[i]; pu.t += dt * pu.v;
         if (pu.t >= 1) { pulses.splice(i, 1); continue; }
@@ -204,6 +273,7 @@
     }
 
     // Neuronen, von hinten nach vorne
+    if (nodes.length && nodes[0].i === undefined) { nodes.forEach(function (n, k) { n.i = k; }); }
     var vis = [];
     for (i = 0; i < nodes.length; i++) {
       var nd = nodes[i], pp = project(nd.x, nd.y, nd.z, {});
@@ -212,7 +282,10 @@
     vis.sort(function (u, w) { return w.d - u.d; });
     var pulse = reduce ? 1 : 1 + 0.12 * Math.sin(t / 420);
     for (i = 0; i < vis.length; i++) {
-      var v = vis[i], node = v.n, al = fade(v.d);
+      var v = vis[i], node = v.n, al = fade(v.d) * dim, nb = 0, idx = node.i;
+      if (mouse) { var ndx = v.x - mouse[0], ndy = v.y - mouse[1], nd2 = ndx * ndx + ndy * ndy; if (nd2 < LR * LR) { nb = Math.pow(1 - Math.sqrt(nd2) / LR, 2); if (nearPts.length < 90) { nearPts.push([v.x, v.y, nd2 * 0.6]); } } }
+      if (lit[idx] > now) { nb = 1; }
+      al = Math.min(1, al + nb);
       var rad = Math.max(1.5, Math.min(node.core ? 30 : (node.area ? 22 : 9), node.r * v.s * (node.core ? pulse : 1)));
       if (al < 0.02) { continue; }
       v.rad = rad;
@@ -231,6 +304,20 @@
     }
     ctx.globalAlpha = 1;
     lastVis = vis;
+    if (mouse) {                                                          // Licht-Wesen: greift mit Beinen nach Nervenpunkten
+      var strength = 0.35 + 0.65 * inside;
+      nearPts.sort(function (u, w) { return u[2] - w[2]; });
+      ctx.lineCap = 'round';
+      for (var lg = 0; lg < Math.min(8, nearPts.length); lg++) {
+        var tp = nearPts[lg], wig = Math.sin(t / 180 + lg * 1.7) * 14, mx2 = (mouse[0] + tp[0]) / 2 + wig, my2 = (mouse[1] + tp[1]) / 2 - 18 + wig * 0.5;
+        ctx.strokeStyle = 'rgba(255,255,255,' + (0.55 * strength).toFixed(2) + ')'; ctx.lineWidth = 1.3;
+        ctx.beginPath(); ctx.moveTo(mouse[0], mouse[1]); ctx.quadraticCurveTo(mx2, my2, tp[0], tp[1]); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,' + (0.8 * strength).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(tp[0], tp[1], 1.8, 0, 6.283); ctx.fill();
+      }
+      var glow = ctx.createRadialGradient(mouse[0], mouse[1], 0, mouse[0], mouse[1], 70);
+      glow.addColorStop(0, 'rgba(255,255,255,' + (0.9 * strength).toFixed(2) + ')'); glow.addColorStop(0.15, 'rgba(' + FX + ',' + (0.55 * strength).toFixed(2) + ')'); glow.addColorStop(1, 'rgba(' + FX + ',0)');
+      ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(mouse[0], mouse[1], 70, 0, 6.283); ctx.fill();
+    }
   }
   var lastVis = [];
 
@@ -279,9 +366,10 @@
   });
   canvas.addEventListener('pointermove', function (ev) {
     var m = local(ev), prev = pointers[ev.pointerId];
+    mouse = m;
     if (!prev) {
       var v = pick(m[0], m[1]); hover = v ? v.n : null;
-      canvas.style.cursor = v && v.n.url ? 'pointer' : 'grab'; showTip(v, m[0], m[1]); return;
+      canvas.style.cursor = v && v.n.url ? 'pointer' : (cam.dist < 1.3 ? 'none' : 'grab'); showTip(v, m[0], m[1]); return;
     }
     touch();
     var ids = Object.keys(pointers);
@@ -298,13 +386,18 @@
   function release(ev) {
     var was = pointers[ev.pointerId]; delete pointers[ev.pointerId]; pinch0 = 0;
     if (was && dragDist < 6 && ev.type === 'pointerup') {
-      var m = local(ev), v = pick(m[0], m[1]);
-      if (v && v.n.url) { window.location.href = v.n.url; }
+      var m = local(ev), v = pick(m[0], m[1]), now2 = performance.now();
+      if (!v) { return; }
+      var idx = v.n.i;
+      if (lit[idx] > now2 && v.n.url) { window.location.href = v.n.url; return; }   // zweiter Klick: öffnen
+      lit = {}; lit[idx] = now2 + 9000;                                             // erster Klick: Gedankengang leuchtet
+      edges.forEach(function (e) { if (e[0] === idx) { lit[e[1]] = now2 + 9000; } else if (e[1] === idx) { lit[e[0]] = now2 + 9000; } });
+      if (tip && !tip.hidden) { var hint = document.createElement('span'); hint.textContent = 'Nochmal klicken: öffnen'; tip.appendChild(hint); }
     }
   }
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
-  canvas.addEventListener('pointerleave', function () { hover = null; showTip(null); });
+  canvas.addEventListener('pointerleave', function () { hover = null; mouse = null; showTip(null); });
   canvas.addEventListener('dblclick', function () { cam.yaw = HOME.yaw; cam.pitch = HOME.pitch; cam.dist = HOME.dist; touch(); });
   canvas.addEventListener('keydown', function (ev) {
     var used = true; touch();
