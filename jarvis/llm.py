@@ -190,10 +190,10 @@ class LLMRouter:
         except Exception:  # noqa: BLE001 – unbekannter Preis = nicht begrenzbar
             raise ModelBlocked("Kosten dieses Modells sind nicht begrenzbar. Es wurde nichts gesendet.") from None
         reserve = decision.cost_eur
-        if searches:                                   # Stand 23: Websuche hat ein eigenes, festes Höchstlimit
+        if cap_eur:                                    # Websuche/Projekte (Stand 23/24): eigenes, festes Höchstlimit
             if worst > cap_eur:
-                raise ModelBlocked(f"Websuche: mögliche Höchstkosten ({worst:.3f} €) liegen über dem Limit "
-                                   f"werkstatt.max_eur_pro_suche ({cap_eur:.3f} €). Es wurde nichts gesendet.")
+                raise ModelBlocked(f"Mögliche Höchstkosten ({worst:.3f} €) liegen über dem Limit ({cap_eur:.3f} €). "
+                                   f"Es wurde nichts gesendet.")
             reserve = max(reserve, worst)
             decision = type(decision)(decision.model, decision.kind, reserve, decision.key_env)
         if worst > decision.cost_eur:
@@ -224,7 +224,7 @@ class LLMRouter:
         if decision.kind == "test" or not hasattr(model, "search_billed"):
             raise ModelBlocked("Websuche gibt es nur mit echter KI (Claude). Es wurde nichts gesendet.")
         _, _, text = self._guard().prepare("", [], text)
-        return self._billed(model, decision, "websuche", len(text) + 1500,
+        return self._billed(model, decision, "websuche", len(text) + 1500,  # noqa: E501
                             lambda key: model.search_billed(text, key, max_uses), searches=max_uses, cap_eur=cap_eur)
 
     def complete(self, task: str, text: str) -> str:
@@ -238,7 +238,19 @@ class LLMRouter:
         self._charge(model, decision)
         return model.complete(task, text)
 
-    def chat(self, system_prompt: str, history: list, text: str, model=None, effort: str = "") -> str:
+    def build(self, text: str, model=None, cap_eur: float = 0.30) -> str:
+        """Stand 24: ein Projekt als HTML-Datei schreiben lassen (gleiche Prüfkette, eigenes Kostenlimit)."""
+        from .ai_models import ModelBlocked
+        self._local.cost = 0.0
+        model, decision = self._admit("projekt", len(text or ""), model)
+        if decision.kind == "test" or not hasattr(model, "build_billed"):
+            raise ModelBlocked("Bauen gibt es nur mit echter KI (Claude). Es wurde nichts gesendet.")
+        _, _, text = self._guard().prepare("", [], text)
+        return self._billed(model, decision, "projekt", len(text) + 2000,
+                            lambda key: model.build_billed(text, key), cap_eur=cap_eur)
+
+    def chat(self, system_prompt: str, history: list, text: str, model=None, effort: str = "",
+             search: int = 0, cap_eur: float = 0.0) -> str:
         """Chat-Antwort. Notaus, Erlaubnisliste, Datenschutz-Schranke und Kostenbremse VOR dem Modellaufruf.
 
         Stand 18: `model` erlaubt ein anderes, ebenfalls freigegebenes Modell (z. B. Sonnet für Strategien) – es
@@ -251,6 +263,11 @@ class LLMRouter:
             if hasattr(model, "chat_billed"):
                 size = len(system_prompt) + len(text) + sum(len(m["text"]) for m in history) + 200
                 extra = {"effort": effort} if effort else {}
+                if search and cap_eur:             # Stand 24: Websuche im Gespräch (nur mit eigenem Limit)
+                    extra["search"] = search
+                    return self._billed(model, decision, "chat", size,
+                                        lambda key: model.chat_billed(system_prompt, history, text, key, **extra),
+                                        searches=search, cap_eur=cap_eur)
                 return self._billed(model, decision, "chat", size,
                                     lambda key: model.chat_billed(system_prompt, history, text, key, **extra))
         self._charge(model, decision)

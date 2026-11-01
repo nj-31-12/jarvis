@@ -29,6 +29,8 @@ def _safe_url(escaped_url: str) -> str | None:
         return None
     if raw.lower().startswith(_SAFE_SCHEMES):
         return _esc(raw)
+    if re.fullmatch(r"/auftraege\?id=[a-f0-9]{12}", raw):     # Stand 24: Link zum eigenen Auftrag (Live-Ansicht)
+        return raw
     return None
 
 

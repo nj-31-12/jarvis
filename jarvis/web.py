@@ -532,7 +532,7 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages, Missio
             if not session:
                 return redirect("/login")
             return self._home(session)
-        if path in ("/stimme", "/stimme/frage", "/stimme/ton") or path.startswith("/auftraege"):
+        if path in ("/stimme", "/stimme/frage", "/stimme/ton", "/medien/bild") or path.startswith("/auftraege"):
             return self._mission_routes(method, path, target, session, field)
         if path in ("/team", "/team/runde", "/team/daten"):
             if not session:
@@ -694,6 +694,8 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages, Missio
                                                 body_class="wide voice-doc", session=session, active="stimme"))
             if path == "/stimme/ton":
                 return self._voice_tone(session, q("k"), q("fx"))
+            if path == "/medien/bild":
+                return self._media_image(q("f"))
             if path == "/auftraege":
                 return Response(200, self._page("Aufträge", self._missions_page(session, html.escape(session.csrf), query),
                                                 body_class="wide", session=session, active="auftraege"))

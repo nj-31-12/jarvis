@@ -14,6 +14,7 @@ Umgerechnet wird bewusst 1 $ = 1 € – das überschätzt die Kosten leicht und
 from __future__ import annotations
 
 import json
+import re
 import ssl
 import urllib.error
 import urllib.request
@@ -34,7 +35,8 @@ PRICES_USD_PER_MTOK = {
 
 # Höchstzahl Ausgabe-Tokens je Aufgabe (inkl. Denkschritte des Modells). Begrenzt die Kosten pro Anfrage.
 MAX_OUTPUT_TOKENS = {"chat": 4096, "idea": 4096, "research": 6144, "briefing": 4096, "post": 2048, "skill": 2048,
-                     "websuche": 4096, "webseite": 4096}
+                     "websuche": 4096, "webseite": 4096, "projekt": 16000, "bild": 400}
+BUILD_TIMEOUT_SECONDS = 300            # ein ganzes Projekt zu schreiben dauert länger als eine Antwort
 
 # Stand 23: Websuche (Server-Werkzeug von Claude). Preis laut Anbieter: 10 $ je 1.000 Suchen.
 # Suchergebnisse werden als Eingabe-Tokens berechnet; je Suche rechnen wir vorsichtig mit bis zu 20.000 Tokens.
@@ -57,6 +59,13 @@ TASK_HINTS = {
     "skill": "Bearbeite die folgende Aufgabe knapp und sachlich.",
     "webseite": "Du bist Texter und Webdesigner. Antworte NUR mit einem JSON-Objekt (ohne Erklärung, ohne "
                 "Markdown) im verlangten Format. Erfinde keine Preise, Auszeichnungen, Bewertungen oder Kontaktdaten.",
+    "projekt": "Du bist ein Weltklasse-Entwickler und Designer. Baue das Gewünschte als EINE vollständige, sofort "
+               "lauffähige HTML-Datei (HTML, CSS und JavaScript in dieser einen Datei). Modernes, hochwertiges Design, "
+               "Animationen (gern 3D mit Canvas/WebGL), Handy-Ansicht, Deutsch. Keine Platzhalter-Funktionen: alles soll "
+               "wirklich funktionieren. Keine Daten an fremde Server senden, keine Tracker, keine Formulare an externe "
+               "Adressen. Antworte NUR mit der HTML-Datei, beginnend mit <!doctype html>.",
+    "bild": "Formuliere aus der Bildbeschreibung einen präzisen englischen Prompt für ein Bildmodell (FLUX): Motiv, "
+            "Stil, Licht, Perspektive, Details. Höchstens 70 Wörter. Antworte NUR mit dem Prompt.",
     "websuche": "Du recherchierst im Internet. Nutze die Websuche. Antworte am Ende NUR mit dem verlangten JSON. "
                 "Nur öffentlich sichtbare Firmenangaben (Name, Ort, Webseite) – keine Privatpersonen, keine "
                 "E-Mail-Adressen, keine Telefonnummern.",
@@ -145,11 +154,20 @@ class AnthropicModel:
 
     complete = chat
 
-    def chat_billed(self, system_prompt: str, history: list, text: str, api_key: str, effort: str = "medium"):
+    def chat_billed(self, system_prompt: str, history: list, text: str, api_key: str, effort: str = "medium",
+                    search: int = 0):
         body = {"model": self.name, "max_tokens": MAX_OUTPUT_TOKENS["chat"],
                 "system": system_prompt or "", "messages": to_messages(history, text),
                 "output_config": {"effort": effort if effort in EFFORTS else "medium"}}
+        if search:                         # Stand 24: Claude entscheidet selbst, ob er im Internet nachsieht
+            body["tools"] = [_search_tool(search)]
         return self._send(body, api_key)
+
+    def build_billed(self, text: str, api_key: str):
+        """Stand 24: ein ganzes Projekt (eine HTML-Datei) schreiben."""
+        body = {"model": self.name, "max_tokens": MAX_OUTPUT_TOKENS["projekt"],
+                "system": TASK_HINTS["projekt"], "messages": to_messages([], text), "output_config": {"effort": "medium"}}
+        return self._send(body, api_key, timeout=BUILD_TIMEOUT_SECONDS)
 
     def complete_billed(self, task: str, text: str, api_key: str):
         hint = TASK_HINTS.get(task, TASK_HINTS["skill"])
@@ -163,11 +181,10 @@ class AnthropicModel:
         body = {"model": self.name, "max_tokens": MAX_OUTPUT_TOKENS["websuche"],
                 "system": "Du bist JARVIS, Noahs Recherche-Assistent. Antworte auf Deutsch. " + TASK_HINTS["websuche"],
                 "messages": to_messages([], text), "output_config": {"effort": "low"},
-                "tools": [{"type": WEB_SEARCH_TOOL, "name": "web_search", "max_uses": max(1, min(int(max_uses), 10)),
-                           "user_location": {"type": "approximate", "country": "DE", "timezone": "Europe/Berlin"}}]}
+                "tools": [_search_tool(max_uses)]}
         return self._send(body, api_key)
 
-    def _send(self, body: dict, api_key: str):
+    def _send(self, body: dict, api_key: str, timeout: float | None = None):
         """Eine Anfrage, keine Wiederholung. Gibt (Antworttext, tatsächliche Kosten in € oder None) zurück."""
         if not api_key:
             raise AIServiceError("Schlüssel fehlt. Es wurde nichts gesendet.")
@@ -179,7 +196,7 @@ class AnthropicModel:
         else:   # lokaler Fake-Server im Test: nie über einen Proxy
             opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         try:
-            with opener.open(req, timeout=self.timeout) as resp:
+            with opener.open(req, timeout=timeout or self.timeout) as resp:
                 ctype = resp.headers.get("content-type", "")
                 raw = resp.read(MAX_RESPONSE_BYTES + 1)
         except urllib.error.HTTPError as exc:
@@ -204,9 +221,18 @@ class AnthropicModel:
         cost = self.actual_cost_eur(msg.get("usage"))
         stop = msg.get("stop_reason")
         blocks = msg.get("content") if isinstance(msg.get("content"), list) else []
-        text = "\n\n".join(b.get("text", "") for b in blocks
-                           if isinstance(b, dict) and b.get("type") == "text" and isinstance(b.get("text"), str))
-        text = text.strip()
+        texts = [b for b in blocks if isinstance(b, dict) and b.get("type") == "text" and isinstance(b.get("text"), str)]
+        cited = any(b.get("citations") for b in texts)
+        # Mit Websuche liefert Claude den Text in vielen Stücken (je Quelle eins) – die gehören direkt aneinander.
+        text = ("" if cited else "\n\n").join(b["text"] for b in texts).strip()
+        links = []
+        for b in texts:
+            for c in b.get("citations") or []:
+                url, title = (c.get("url"), c.get("title")) if isinstance(c, dict) else (None, None)
+                if isinstance(url, str) and url.startswith("https://") and url not in [u for u, _ in links] and len(links) < 5:
+                    links.append((url, re.sub(r"[\[\]\n]", " ", str(title or url))[:80]))
+        if text and links:
+            text += "\n\n🌐 Quellen: " + " · ".join(f"[{t}]({u})" for u, t in links)
         if stop == "refusal":
             return ("Dazu kann ich keine Antwort geben (Claude hat die Anfrage aus Sicherheitsgründen abgelehnt). "
                     "Formuliere die Frage gern anders.", cost)
@@ -219,6 +245,11 @@ class AnthropicModel:
         if stop == "max_tokens":
             text += "\n\n_(Antwort wegen Längenbegrenzung abgeschnitten.)_"
         return text, cost
+
+
+def _search_tool(max_uses: int) -> dict:
+    return {"type": WEB_SEARCH_TOOL, "name": "web_search", "max_uses": max(1, min(int(max_uses), 10)),
+            "user_location": {"type": "approximate", "country": "DE", "timezone": "Europe/Berlin"}}
 
 
 def _http_error_text(code: int) -> str:

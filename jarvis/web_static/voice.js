@@ -79,9 +79,9 @@
     if (!v) { propose.hidden = true; return; }
     var h = document.createElement('p');
     h.textContent = v.art === 'akquise' ? '🔎 Auftrag: ' + v.branche + ' in ' + v.ort + ' – schwache Webseiten finden und neu bauen'
-      : '🛠 Auftrag: Webseite für ' + v.name;
+      : (v.art === 'bild' ? '🖼 Bild: ' : '🛠 Projekt: ') + (v.beschreibung || v.name || '');
     var fm = document.createElement('form'); fm.method = 'post'; fm.action = '/auftraege/start';
-    var fields = { csrf: csrf, art: v.art, branche: v.branche || '', ort: v.ort || '', name: v.name || '' };
+    var fields = { csrf: csrf, art: v.art, branche: v.branche || '', ort: v.ort || '', name: v.name || '', beschreibung: v.beschreibung || '' };
     Object.keys(fields).forEach(function (k) { var i = document.createElement('input'); i.type = 'hidden'; i.name = k; i.value = fields[k]; fm.appendChild(i); });
     var go = document.createElement('button'); go.type = 'submit'; go.textContent = '▶ Starten';
     var edit = document.createElement('a'); edit.href = v.link; edit.textContent = 'Vorher anpassen'; edit.className = 'ghost-link';

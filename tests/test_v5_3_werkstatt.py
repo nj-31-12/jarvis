@@ -221,7 +221,10 @@ class Absicht(JarvisBase):
     def test_erkennt_auftraege(self):
         self.assertEqual(detect_intent("Jarvis, such mir Restaurants in Bremen mit schlechten Webseiten"),
                          {"art": "akquise", "branche": "Restaurants", "ort": "Bremen"})
-        self.assertEqual(detect_intent("Bau eine Webseite für Café Sonne")["name"], "Café Sonne")
+        self.assertEqual(detect_intent("Bau eine Webseite für Café Sonne")["art"], "projekt")
+        self.assertEqual(detect_intent("Jarvis, mal mir ein Bild von einem Löwen im Weltall")["art"], "bild")
+        self.assertEqual(detect_intent("Kannst du mir einen Kalorienrechner programmieren?")["art"], "projekt")
+        self.assertIsNone(detect_intent("Erstelle mir einen Plan für morgen"))
         self.assertIsNone(detect_intent("Wie wird das Wetter in Bremen?"))
 
 
@@ -259,7 +262,7 @@ class WebSeiten(JarvisBase):
 
     def test_sprachauftrag_erst_nach_ja(self):
         r = json.loads(self.req("POST", "/stimme/frage", {"csrf": self.csrf, "text": "Bau eine Webseite für Eiscafé Venezia"}, sid=self.sid).body)
-        self.assertEqual(r["vorschlag"]["art"], "webseite")
+        self.assertEqual(r["vorschlag"]["art"], "projekt")
         self.assertEqual(self.app._runner().missions, {})                   # noch nichts gestartet
         tone = self.req("GET", r["audio"], sid=self.sid)
         self.assertIn(tone.status, (200, 501))                             # 501 = keine Mac-Stimme (Linux)
@@ -313,7 +316,7 @@ class Schalter(JarvisBase):
             werkstatt(True, p)
         d = json.loads(p.read_text(encoding="utf-8"))
         self.assertTrue(d["werkstatt"]["web_research_allowed"])
-        self.assertEqual(d["ai"]["models"]["claude-haiku-5-5"]["tasks"], ["chat", "websuche", "webseite"])
+        self.assertEqual(d["ai"]["models"]["claude-haiku-5-5"]["tasks"], ["chat", "websuche", "webseite", "projekt", "bild"])
         self.assertEqual(d["ai"]["models"]["b"], {})
         with mock.patch("builtins.print"):
             werkstatt(False, p)

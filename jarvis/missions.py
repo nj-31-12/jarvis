@@ -26,11 +26,54 @@ from pathlib import Path
 from .site_builder import build_site, clean_content, content_prompt, demo_content, parse_json_object
 from .site_check import check_site
 
-KINDS = {"akquise": "Betriebe mit schwachen Webseiten finden", "webseite": "Webseite für einen Betrieb bauen"}
+KINDS = {"akquise": "Betriebe mit schwachen Webseiten finden", "webseite": "Webseite für einen Betrieb bauen",
+         "projekt": "Projekt bauen", "bild": "Bild erzeugen"}
 MAX_STEPS = 200
 MAX_PARALLEL = 2
 DEFAULTS = {"web_research_allowed": False, "output_dir": "~/JARVIS/websites", "max_betriebe": 5,
-            "max_suchen": 4, "max_eur_pro_suche": 0.15}
+            "max_suchen": 4, "max_eur_pro_suche": 0.15, "chat_websuche": True, "projekte_dir": "~/JARVIS/projekte",
+            "bilder_dir": "~/JARVIS/bilder", "max_eur_pro_projekt": 0.30, "max_bilder_pro_tag": 30}
+FREIGABE_HINWEIS = "Freischalten im Terminal: python3 -m jarvis werkstatt-an (danach JARVIS neu starten)"
+IMG_NAME = re.compile(r"\d{4}-\d{2}-\d{2}_[a-z0-9-]{1,48}(_\d{1,3})?\.(jpg|png)")
+
+# Stand 24: Aufträge im Gespräch erkennen (Chat und Stimme)
+_VERB = r"(?:bau|baue|erstell|erstelle|programmier|programmiere|entwickel|entwickle|mach|mache|generier|generiere|mal|male|zeichne|design|designe)"
+BUILD_RE = re.compile(r"(?i)^\s*(?:hey\s+)?(?:jarvis[,!:]?\s*)?(?:kannst du\s+(?:mir\s+)?|bitte\s+)?" + _VERB + r"\b")
+ASK_RE = re.compile(r"(?i)\b(kannst|könntest|würdest)\s+du\b.*\b(bauen|programmieren|erstellen|entwickeln|generieren|"
+                    r"malen|zeichnen|designen|machen)\b")
+EXPLAIN_RE = re.compile(r"(?i)\b(wie man|erklär|was ist|was sind|warum)\b")
+BUILD_WORDS = re.compile(r"(?i)(\b(webseite|website|homepage|landingpage|landing page|app|spiel|game|tool|dashboard|"
+                         r"animation|programm|anwendung|onepager|portfolio|quiz|timer|planer|3d-?szene)\b|rechner\b|spiel\b|app\b)")
+IMAGE_WORDS = re.compile(r"(?i)\b(bild|bilder|foto|logo|illustration|grafik|poster|wallpaper|zeichnung|gemälde|cover|thumbnail)\b")
+SEARCH_RE = re.compile(r"(?i)\b(such|find|recherchier)\w*\b(?:\s+(?:mir|bitte|mal|nach))*\s+(?P<branche>[\wäöüÄÖÜß&-]+(?:\s+[\wäöüÄÖÜß&-]+)?)"
+                       r"\s+in\s+(?P<ort>[\wäöüÄÖÜß.-]+(?:\s+[\wäöüÄÖÜß.-]+)?)")
+_STOP = {"mit", "die", "den", "der", "schlechten", "schlechte", "alten", "webseiten", "webseite"}
+
+
+def detect_intent(text: str):
+    """Erkennt einen Auftrag in natürlicher Sprache. Gibt einen Vorschlag zurück oder None."""
+    t = (text or "").strip()
+    if len(t) > 1500:
+        return None
+    m = SEARCH_RE.search(t)
+    if m and re.search(r"(?i)(webseite|website|homepage|internetseite)", t) and re.search(r"(?i)(schlecht|alt|schwach|veraltet)", t):
+        branche = " ".join(w for w in m.group("branche").split() if w.lower() not in _STOP) or m.group("branche")
+        ort = " ".join(w for w in m.group("ort").split() if w.lower() not in _STOP).strip(" .")
+        if ort:
+            return {"art": "akquise", "branche": branche[:60], "ort": ort[:60]}
+    if (BUILD_RE.search(t) or ASK_RE.search(t)) and not EXPLAIN_RE.search(t):
+        if IMAGE_WORDS.search(t) and not BUILD_WORDS.search(t):
+            return {"art": "bild", "beschreibung": t[:1000]}
+        if BUILD_WORDS.search(t):
+            return {"art": "projekt", "beschreibung": t[:1500]}
+    return None
+
+
+def get_runner(jarvis) -> "MissionRunner":
+    """Ein gemeinsamer Auftrags-Dienst je JARVIS (Chat, Stimme und Auftrags-Seite sehen dieselben Aufträge)."""
+    if getattr(jarvis, "_mission_runner", None) is None:
+        jarvis._mission_runner = MissionRunner(jarvis)
+    return jarvis._mission_runner
 ID_RE = re.compile(r"[a-f0-9]{12}")
 
 
@@ -42,6 +85,9 @@ def settings(cfg: dict) -> dict:
     w["max_betriebe"] = max(1, min(int(w["max_betriebe"]), 8))
     w["max_suchen"] = max(1, min(int(w["max_suchen"]), 6))
     w["max_eur_pro_suche"] = max(0.01, min(float(w["max_eur_pro_suche"]), 0.5))
+    w["max_eur_pro_projekt"] = max(0.01, min(float(w["max_eur_pro_projekt"]), 1.0))
+    w["max_bilder_pro_tag"] = max(0, min(int(w["max_bilder_pro_tag"]), 150))
+    w["chat_websuche"] = w["chat_websuche"] is True
     return w
 
 
@@ -63,6 +109,7 @@ class Mission:
         self.started = dt.datetime.now().strftime("%d.%m.%Y %H:%M")
         self.result: dict = {}
         self.stop_flag = threading.Event()
+        self.done = threading.Event()        # gesetzt, wenn der Auftrag komplett beendet und gespeichert ist
         self.lock = threading.Lock()
 
     def say(self, text: str, art: str = "info", detail: str = "") -> None:
@@ -81,6 +128,9 @@ class Mission:
         p = self.params
         if self.kind == "akquise":
             return f"{p.get('branche', '')} in {p.get('ort', '')}"
+        if self.kind in ("projekt", "bild"):
+            b = p.get("beschreibung", "")
+            return b[:70] + ("…" if len(b) > 70 else "")
         return p.get("name", "Webseite")
 
 
@@ -105,6 +155,7 @@ class MissionRunner:
                 m.id, m.status, m.steps, m.started, m.result = d["id"], d["status"], d["schritte"], d["start"], d.get("ergebnis", {})
                 if m.status == "läuft":
                     m.status = "gestoppt"         # nach einem Neustart läuft nichts von allein weiter
+                m.done.set()
                 if ID_RE.fullmatch(m.id):
                     self.missions[m.id] = m
             except (OSError, ValueError, KeyError, TypeError):
@@ -123,14 +174,16 @@ class MissionRunner:
         return sorted(self.missions.values(), key=lambda m: m.started, reverse=True)[:12]
 
     def running(self) -> int:
-        return sum(1 for m in self.missions.values() if m.status == "läuft")
+        return sum(1 for m in self.missions.values() if not m.done.is_set())
 
     def start(self, kind: str, params: dict, background: bool = True) -> Mission:
         if kind not in KINDS:
             raise ValueError("Unbekannter Auftrag.")
         self.j.kill.check()
-        params = {k: _clean(v, 400 if k == "wuensche" else 120) for k, v in params.items()
-                  if k in ("branche", "ort", "name", "url", "wuensche")}
+        params = {k: _clean(v, 1500 if k == "beschreibung" else 400 if k == "wuensche" else 120) for k, v in params.items()
+                  if k in ("branche", "ort", "name", "url", "wuensche", "beschreibung")}
+        if kind in ("projekt", "bild") and len(params.get("beschreibung", "")) < 8:
+            raise ValueError("Bitte beschreibe kurz, was ich bauen bzw. zeigen soll.")
         if kind == "akquise" and not (params.get("branche") and params.get("ort")):
             raise ValueError("Bitte Branche und Ort angeben (z. B. Restaurants · Bremen).")
         if kind == "webseite" and not params.get("name"):
@@ -164,21 +217,22 @@ class MissionRunner:
 
     def _run(self, m: Mission) -> None:
         try:
-            if m.kind == "akquise":
-                self._akquise(m)
-            else:
-                self._webseite(m)
+            {"akquise": self._akquise, "webseite": self._webseite, "projekt": self._projekt, "bild": self._bild}[m.kind](m)
             m.status = "fertig"
         except MissionStopped:
             m.status = "gestoppt"
             m.say("Auftrag angehalten. Bis hierhin ist alles gespeichert.", "warn")
         except Exception as exc:  # noqa: BLE001 – verständlich melden, nie abstürzen
             m.status = "fehler"
-            m.say(f"Das hat nicht geklappt: {str(exc)[:200]}", "fehler")
+            msg = str(exc)[:200]
+            m.say(f"Das hat nicht geklappt: {msg}", "fehler", FREIGABE_HINWEIS if "nicht freigegeben" in msg else "")
             self.j.audit.write("mission_error", mission=m.id, error=type(exc).__name__)
         finally:
-            self._save(m)
-            self.j.audit.write("mission_end", mission=m.id, status=m.status, steps=len(m.steps))
+            try:
+                self._save(m)
+                self.j.audit.write("mission_end", mission=m.id, status=m.status, steps=len(m.steps))
+            finally:
+                m.done.set()
 
     def _test_mode(self) -> bool:
         return bool(getattr(self.j.llm.model, "is_test_mode", False))
@@ -283,6 +337,92 @@ class MissionRunner:
               "Hinweis: Werbe-E-Mails an Firmen ohne Einwilligung sind meist unzulässig (UWG § 7). "
               "Besser: vorbeigehen, anrufen oder einen Brief schicken.")
 
+    # ------------------------------------------------------------------ Stand 24: Projekte und Bilder
+    def _projekt(self, m: Mission) -> None:
+        from .ai_models import ModelBlocked
+        from .strategy import strategy_model
+        w = settings(self.j.cfg)
+        idea = m.params["beschreibung"]
+        m.say("Verstanden. Ich baue: " + idea[:160], "start")
+        if self._test_mode():
+            m.say("Testmodus: Ohne echte KI kann ich nicht programmieren.", "warn")
+            raise MissionStopped()
+        strong = strategy_model(self.j.cfg)
+        m.say(f"Ich plane Aufbau, Design und Funktionen. {'Claude Sonnet' if strong else 'Claude'} schreibt jetzt den Code – "
+              f"das dauert ein bis drei Minuten.", "info", f"Kostenlimit {w['max_eur_pro_projekt']:.2f} €.")
+        self._gate(m)
+        prompt = ("Aufgabe von Noah:\n" + idea + "\n\nBaue das als eine einzige, vollständige HTML-Datei.")
+        try:
+            raw = self.j.llm.build(prompt, model=strong, cap_eur=w["max_eur_pro_projekt"])
+        except ModelBlocked:
+            if strong is None:
+                raise
+            m.say("Sonnet ist nicht freigegeben – ich baue mit dem Standard-Modell.", "warn")
+            raw = self.j.llm.build(prompt, cap_eur=w["max_eur_pro_projekt"])
+        page = extract_html(raw)
+        if not page:
+            raise RuntimeError("Die KI hat keine vollständige HTML-Datei geliefert. Beschreib es bitte etwas genauer.")
+        m.say(f"Code fertig: {len(page) // 1000} KB, Kosten etwa {self.j.llm.last_cost_eur():.3f} €.", "ok")
+        self._gate(m)
+        from .site_builder import slugify
+        folder = _new_folder(Path(w["projekte_dir"]).expanduser(), slugify(idea[:40]))
+        (folder / "index.html").write_text(page, encoding="utf-8")
+        (folder / "AUFTRAG.txt").write_text(idea + "\n", encoding="utf-8")
+        m.result.update({"ordner": str(folder), "name": idea[:60], "seite": str(folder / "index.html")})
+        m.say("Fertig! Ich öffne es jetzt in deinem Browser.", "fertig", str(folder))
+        self.open_result(m.id)
+
+    def _bild(self, m: Mission) -> None:
+        from .ai_models import ModelBlocked
+        from .media import MediaError, credentials, generate_image
+        w = settings(self.j.cfg)
+        idea = m.params["beschreibung"]
+        m.say("Verstanden. Ich erzeuge ein Bild: " + idea[:160], "start")
+        account, token = credentials(self.j.llm.policy)
+        if not (account and token):
+            m.say("Für Bilder fehlt noch der kostenlose Cloudflare-Zugang.", "warn",
+                  "Einrichten im Terminal: python3 -m jarvis bilder-einrichten (Anleitung: docs/27_Bilder_und_Bauen.md)")
+            raise MissionStopped()
+        folder = Path(w["bilder_dir"]).expanduser()
+        today = dt.date.today().isoformat()
+        used = len(list(folder.glob(today + "_*"))) if folder.exists() else 0
+        if used >= w["max_bilder_pro_tag"]:
+            raise RuntimeError(f"Tageslimit erreicht ({w['max_bilder_pro_tag']} Bilder). Morgen geht es weiter.")
+        prompt = idea
+        if not self._test_mode():
+            try:
+                m.say("Ich formuliere die Bildidee für das Bildmodell.", "info")
+                better = self.j.llm.complete("bild", idea).strip()
+                if 10 < len(better) < 1200:
+                    prompt = better
+            except ModelBlocked:
+                pass
+        prompt = self.j.llm._guard().prepare("", [], prompt)[2] if not self._test_mode() else prompt
+        self._gate(m)
+        m.say("Das Bildmodell FLUX malt jetzt (kostenlos über Cloudflare).", "info", prompt[:300])
+        try:
+            img = generate_image(prompt, account, token)
+        except MediaError as exc:
+            raise RuntimeError(str(exc)) from None
+        from .site_builder import slugify
+        folder.mkdir(parents=True, exist_ok=True)
+        ext = "png" if img.startswith(b"\x89PNG") else "jpg"
+        base, n = f"{today}_{slugify(idea[:40])}", 1
+        path = folder / f"{base}.{ext}"
+        while path.exists():
+            n += 1
+            path = folder / f"{base}_{n}.{ext}"
+        path.write_bytes(img)
+        m.result.update({"bild": path.name, "ordner": str(folder), "name": idea[:60]})
+        m.say("Fertig! Hier ist dein Bild.", "fertig", str(path))
+
+    def image_path(self, name: str):
+        """Nur Bilder aus dem eigenen Bilder-Ordner, nur mit festem Namensmuster."""
+        if not isinstance(name, str) or not IMG_NAME.fullmatch(name):
+            return None
+        p = Path(settings(self.j.cfg)["bilder_dir"]).expanduser() / name
+        return p if p.is_file() else None
+
     def open_result(self, mid: str) -> str:
         """Öffnet die fertige Webseite im Standardbrowser (nur auf dem Mac, nur Ordner aus dieser Werkstatt)."""
         import subprocess
@@ -291,8 +431,9 @@ class MissionRunner:
         if not m or not m.result.get("seite"):
             return "Für diesen Auftrag gibt es noch keine Webseite."
         page = Path(m.result["seite"]).resolve()
-        root = Path(settings(self.j.cfg)["output_dir"]).expanduser().resolve()
-        if root not in page.parents or not page.is_file():
+        w = settings(self.j.cfg)
+        roots = [Path(w[k]).expanduser().resolve() for k in ("output_dir", "projekte_dir")]
+        if not any(r in page.parents for r in roots) or not page.is_file():
             return "Die Datei liegt nicht in der Werkstatt und wird nicht geöffnet."
         if self.opener:
             self.opener(page)
@@ -301,6 +442,23 @@ class MissionRunner:
             return f"Bitte selbst öffnen: {page}"
         subprocess.run(["open", str(page)], timeout=10, check=False)       # Liste, keine Shell
         return "Die Webseite ist im Browser geöffnet."
+
+
+def extract_html(text: str) -> str:
+    """Holt die HTML-Datei aus der Antwort (mit oder ohne ```html-Rahmen)."""
+    text = text or ""
+    m = re.search(r"(?is)(<!doctype html.*?</html>)", text) or re.search(r"(?is)(<html.*?</html>)", text)
+    return m.group(1).strip() + "\n" if m else ""
+
+
+def _new_folder(root: Path, slug: str) -> Path:
+    root.mkdir(parents=True, exist_ok=True)
+    base = f"{dt.date.today():%Y-%m-%d}_{slug}"
+    folder, n = root / base, 2
+    while folder.exists():
+        folder, n = root / f"{base}_{n}", n + 1
+    folder.mkdir()
+    return folder
 
 
 def _parse_businesses(text: str, limit: int) -> list:

@@ -29,6 +29,7 @@
   wissen-import <Ordner|.zip>  Wissenspaket (Markdown-Notizen) ins Second Brain übernehmen (nur neue Dateien)
   werkstatt-an  Websuche + Webseiten-Check für die Auftrags-Zentrale einschalten (Stand 23)
   werkstatt-aus Websuche + Webseiten-Check wieder ausschalten
+  bilder-einrichten  Kostenlosen Cloudflare-Zugang für Bilder in .env eintragen (Stand 24)
 """
 from __future__ import annotations
 
@@ -449,7 +450,7 @@ def werkstatt(on: bool, path=None) -> None:
     if on:
         for name, entry in ((data.get("ai") or {}).get("models") or {}).items():
             if isinstance(entry, dict) and isinstance(entry.get("tasks"), list):
-                for t in ("websuche", "webseite"):
+                for t in ("websuche", "webseite", "projekt", "bild"):
                     if t not in entry["tasks"]:
                         entry["tasks"].append(t)
                         added.append(f"{name}: {t}")
@@ -457,8 +458,11 @@ def werkstatt(on: bool, path=None) -> None:
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     os.replace(tmp, path)
     if on:
-        print("✅ Werkstatt eingeschaltet: JARVIS darf im Auftrag Betriebe im Internet suchen und öffentliche")
-        print("   Webseiten prüfen (nur lesen). Er sendet NICHTS an Betriebe. Kosten pro Suche: höchstens ca. 0,15 €.")
+        print("✅ Werkstatt eingeschaltet. JARVIS darf jetzt:")
+        print("   • im Gespräch im Internet nachsehen (aktuelles Wissen, ca. 1–3 Cent pro Frage mit Suche)")
+        print("   • Projekte bauen: Webseiten, Apps, Spiele, Rechner (ca. 1–25 Cent pro Projekt)")
+        print("   • Betriebe suchen und öffentliche Webseiten prüfen (nur lesen, er sendet NICHTS)")
+        print("   • Bilder erzeugen (kostenlos, sobald `python3 -m jarvis bilder-einrichten` erledigt ist)")
         if added:
             print("   Aufgaben ergänzt: " + ", ".join(added))
         print("   Ausschalten jederzeit mit: python3 -m jarvis werkstatt-aus")
@@ -467,8 +471,37 @@ def werkstatt(on: bool, path=None) -> None:
     print("   Bitte JARVIS neu starten, damit die Änderung gilt.")
 
 
+def media_setup(env_path=None, ask=input, ask_secret=None) -> None:
+    """Stand 24: Cloudflare-Zugang für kostenlose Bilder in .env schreiben (Schlüssel verdeckt eingeben)."""
+    import getpass
+    import os
+    import re
+    from pathlib import Path
+    from .config import ENV_FILE, PROJECT_ROOT
+    from .media import ACCOUNT_ENV, ACCOUNT_RE, TOKEN_ENV
+    ask_secret = ask_secret or getpass.getpass
+    path = Path(env_path or os.environ.get(ENV_FILE) or PROJECT_ROOT / ".env")
+    print("Kostenlose Bilder über Cloudflare einrichten. Anleitung: docs/27_Bilder_und_Bauen.md")
+    account = ask("1) Konto-ID (Account ID, 32 Zeichen): ").strip().lower()
+    if not ACCOUNT_RE.fullmatch(account):
+        raise ValueError("Das ist keine gültige Konto-ID (32 Zeichen, 0-9 und a-f). Nichts geändert.")
+    token = ask_secret("2) API-Token (wird beim Einfügen NICHT angezeigt, dann Enter): ").strip()
+    if not re.fullmatch(r"[A-Za-z0-9_-]{30,80}", token):
+        raise ValueError("Das sieht nicht wie ein Cloudflare-Token aus. Nichts geändert.")
+    lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    lines = [l for l in lines if not l.split("=", 1)[0].strip() in (ACCOUNT_ENV, TOKEN_ENV)]
+    lines += [f"{ACCOUNT_ENV}={account}", f"{TOKEN_ENV}={token}"]
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, path)
+    print("✅ Gespeichert in .env (nur für dich lesbar). Bitte JARVIS neu starten.")
+
+
 def main(argv: list[str]) -> None:
     cmd = argv[1] if len(argv) > 1 else "hilfe"
+    if cmd == "bilder-einrichten":
+        return media_setup()
     if cmd in ("werkstatt-an", "werkstatt-aus"):
         return werkstatt(cmd == "werkstatt-an")
     if cmd == "demo":

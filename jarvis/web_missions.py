@@ -14,38 +14,17 @@ import re
 import secrets
 from urllib.parse import urlencode
 
-from .missions import KINDS, MissionRunner, settings
+from .missions import KINDS, MissionRunner, detect_intent, get_runner, settings  # noqa: F401
 
 E = html.escape
-INTENT_SEARCH = re.compile(r"(?i)\b(such|find|recherchier)\w*\b(?:\s+(?:mir|bitte|mal|nach))*\s+(?P<branche>[\wäöüÄÖÜß&-]+(?:\s+[\wäöüÄÖÜß&-]+)?)"
-                           r"\s+in\s+(?P<ort>[\wäöüÄÖÜß.-]+(?:\s+[\wäöüÄÖÜß.-]+)?)")
-INTENT_BUILD = re.compile(r"(?i)\b(bau|erstell|mach)\w*\b.*?\b(webseite|website|homepage)\b\s+f(ü|ue)r\s+(?P<name>[^.,!?\n]{2,60})")
 YES = re.compile(r"(?i)^\s*(ja|jap|jo|okay|ok|starte?|los|leg los|mach das|ja bitte|ja,? starte?)\b")
-STOP_WORDS = {"mit", "die", "den", "der", "schlechten", "schlechte", "alten", "webseiten", "webseite"}
-
-
-def detect_intent(text: str):
-    """Erkennt einen Auftrag in gesprochener Sprache. Gibt einen VORSCHLAG zurück, startet nie selbst."""
-    t = (text or "").strip()
-    m = INTENT_BUILD.search(t)
-    if m:
-        return {"art": "webseite", "name": m.group("name").strip(" .")[:80]}
-    m = INTENT_SEARCH.search(t)
-    if m and re.search(r"(?i)(webseite|website|homepage|internetseite|online)", t):
-        branche = " ".join(w for w in m.group("branche").split() if w.lower() not in STOP_WORDS) or m.group("branche")
-        ort = " ".join(w for w in m.group("ort").split() if w.lower() not in STOP_WORDS).strip(" .")
-        if ort:
-            return {"art": "akquise", "branche": branche[:60], "ort": ort[:60]}
-    return None
 
 
 class MissionPages:
     """Wird in WebApp eingemischt. Erwartet self.jarvis, self.chat, self._page, self.audit."""
 
     def _runner(self) -> MissionRunner:
-        if getattr(self, "_missions", None) is None:
-            self._missions = MissionRunner(self.jarvis)
-        return self._missions
+        return get_runner(self.jarvis)
 
     # ------------------------------------------------------------------ Sprach-Ansicht
     def _voice_page(self, session, csrf: str) -> str:
@@ -91,8 +70,10 @@ JARVIS startet Aufträge nur, wenn du „ja“ sagst oder auf Starten drückst.<
             if intent["art"] == "akquise":
                 say = (f"Verstanden. Ich soll {intent['branche']} in {intent['ort']} suchen, deren Webseiten prüfen und "
                        f"für die schwächste eine neue Webseite bauen. Gesendet wird nichts. Soll ich starten? Sag ja.")
+            elif intent["art"] == "bild":
+                say = "Verstanden, ich erzeuge dazu ein Bild. Soll ich starten? Sag ja."
             else:
-                say = f"Verstanden. Ich baue eine neue Webseite für {intent['name']}. Soll ich starten? Sag ja."
+                say = "Verstanden, ich baue das für dich und zeige dir jeden Schritt. Soll ich starten? Sag ja."
             res = self._local_say(session, say)
             res["vorschlag"] = dict(intent, link="/auftraege?" + urlencode({k: v for k, v in intent.items()}))
             return res
@@ -162,6 +143,9 @@ JARVIS startet Aufträge nur, wenn du „ja“ sagst oder auf Starten drückst.<
                           f'<p class="mono">{E(m.result["ordner"])}</p>'
                           f'<form method="post" action="/auftraege/oeffnen"><input type="hidden" name="csrf" value="{csrf}">'
                           f'<input type="hidden" name="id" value="{E(m.id)}"><button type="submit">🌐 Webseite im Browser öffnen</button></form></div>')
+            if m.result.get("bild"):
+                result += (f'<figure class="m-bild"><img src="/medien/bild?f={E(m.result["bild"])}" alt="{E(m.result.get("name", "Bild"))}">'
+                           f'<figcaption class="mono">{E(m.result["ordner"])}/{E(m.result["bild"])}</figcaption></figure>')
             if m.result.get("betriebe"):
                 rows = "".join(f'<li><b>{E(b["name"])}</b> <span class="m-score {"hoch" if b["punkte"] >= 75 else "mittel" if b["punkte"] >= 50 else "tief"}">'
                                f'{int(b["punkte"])}/100</span> <span class="muted">{E(b["urteil"])}</span></li>'
@@ -183,6 +167,16 @@ JARVIS startet Aufträge nur, wenn du „ja“ sagst oder auf Starten drückst.<
 <h1>Aufträge</h1></div><p class="hint team-intro">JARVIS arbeitet selbstständig und zeigt dir jeden Schritt live – mit Stimme. Du startest, du stoppst. Gesendet wird nie etwas ohne dich.</p></header>
 {flash_html}{state}{live}
 <div class="brain-grid">
+<section class="panel"><h2>🚀 Projekt bauen</h2>
+<form class="capture" method="post" action="/auftraege/start"><input type="hidden" name="csrf" value="{csrf}"><input type="hidden" name="art" value="projekt">
+<label for="p-b">Was soll JARVIS bauen?</label><textarea id="p-b" name="beschreibung" rows="4" maxlength="1500" required placeholder="z. B. Eine Landingpage für mein Kosmetikstudio mit 3D-Animation · Ein Kalorienrechner · Ein Quiz über Autos">{E(q('beschreibung')) if q('art') == 'projekt' else ''}</textarea>
+<button type="submit" {dis}>Bauen</button></form>
+<p class="hint">Claude programmiert eine fertige Datei, JARVIS öffnet sie im Browser. Ordner: ~/JARVIS/projekte. Kosten: ca. 1–25 Cent.</p></section>
+<section class="panel"><h2>🖼 Bild erzeugen</h2>
+<form class="capture" method="post" action="/auftraege/start"><input type="hidden" name="csrf" value="{csrf}"><input type="hidden" name="art" value="bild">
+<label for="i-b">Was soll auf dem Bild sein?</label><textarea id="i-b" name="beschreibung" rows="4" maxlength="1000" required placeholder="z. B. Ein Logo für ein Kosmetikstudio in Gold und Schwarz">{E(q('beschreibung')) if q('art') == 'bild' else ''}</textarea>
+<button type="submit" {dis}>Bild erzeugen</button></form>
+<p class="hint">Kostenlos über Cloudflare (ca. 200 Bilder/Tag frei, JARVIS-Limit {w['max_bilder_pro_tag']}). Ordner: ~/JARVIS/bilder.</p></section>
 <section class="panel"><h2>🔎 Betriebe mit schwachen Webseiten finden</h2>
 <form class="capture" method="post" action="/auftraege/start"><input type="hidden" name="csrf" value="{csrf}"><input type="hidden" name="art" value="akquise">
 <label for="a-b">Branche</label><input id="a-b" name="branche" maxlength="60" required value="{E(q('branche'))}" placeholder="z. B. Restaurants, Friseure, Autowerkstätten">
@@ -212,13 +206,20 @@ JARVIS startet Aufträge nur, wenn du „ja“ sagst oder auf Starten drückst.<
 
     def _missions_start(self, session, form_get) -> str:
         art = form_get("art")
-        params = {k: form_get(k) for k in ("branche", "ort", "name", "url", "wuensche")}
+        params = {k: form_get(k) for k in ("branche", "ort", "name", "url", "wuensche", "beschreibung")}
         try:
             m = self._runner().start(art, params)
         except Exception as exc:  # noqa: BLE001 – Eingabefehler, Notaus, zu viele Aufträge
             session.data["mission_flash"] = str(exc)[:200]
-            return "/auftraege?" + urlencode({k: v for k, v in params.items() if v and k != "url"})
+            return "/auftraege?" + urlencode(dict({k: v[:300] for k, v in params.items() if v and k != "url"}, art=art))
         return f"/auftraege?id={m.id}"
+
+    def _media_image(self, name: str):
+        from .web import Response
+        p = self._runner().image_path(name)
+        if p is None:
+            return Response(404, "Nicht gefunden.", "text/plain; charset=utf-8")
+        return Response(200, p.read_bytes(), "image/png" if p.suffix == ".png" else "image/jpeg")
 
     def _missions_data(self, mid: str, since: str) -> str:
         m = self._runner().get(mid)
