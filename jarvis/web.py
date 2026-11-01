@@ -1097,13 +1097,15 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
 <label class="wake" hidden><input type="checkbox" id="wake"> Auf „Jarvis“ hören</label><span class="vc-hint" id="vchint" aria-live="polite"></span></div>
 <button type="submit">Senden</button>
 </form></section>
-<aside class="panel convs" aria-label="Letzte Gespräche"><h2>Letzte Gespräche</h2><ul class="list">{side}</ul></aside>
+<div class="side-col"><section class="panel reactor-panel" aria-label="JARVIS-Kern"><canvas class="reactor-canvas" data-hud="reactor" aria-label="JARVIS-Kern – reagiert beim Tippen, Denken und Sprechen. Mit dem Touchpad drehbar."></canvas>
+<p class="core-state"><span class="st-idle">Bereit</span><span class="st-think">Denkt nach …</span><span class="st-speak">Spricht</span><span class="st-listen">Hört zu</span></p></section>
+<aside class="panel convs" aria-label="Letzte Gespräche"><h2>Letzte Gespräche</h2><ul class="list">{side}</ul></aside></div>
 </div>"""
         inner += ('<div class="thinking" aria-live="polite" hidden><div class="t-orb"><i></i><i></i><i></i></div>'
                   '<canvas class="t-swirl" data-hud="swirl" aria-hidden="true"></canvas>'
                   '<p>JARVIS denkt nach <span>· Antwort wird geprüft</span></p></div>'
                   '<script src="/static/hud.js" defer></script><script src="/static/chat.js" defer></script>')
-        return Response(200, self._page("Chat", inner, body_class="wide chat-doc" + (" portal-on" if portal else ""),
+        return Response(200, self._page("Chat", inner, body_class="wide chat-doc theme-red" + (" portal-on" if portal else ""),
                                         session=session, active="chat"))
 
 

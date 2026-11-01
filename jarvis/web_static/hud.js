@@ -11,7 +11,12 @@
 (function () {
   'use strict';
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var CYAN = '79,227,255', ORANGE = '255,159,67';
+  // Farben aus dem Design (Stand 19): Der Chat setzt --fx-rgb/--fx2-rgb auf Rot/Gold, sonst Türkis/Orange.
+  function cssRgb(name, fallback) {
+    var v = window.getComputedStyle ? getComputedStyle(document.body).getPropertyValue(name).trim() : '';
+    return /^\d{1,3},\s*\d{1,3},\s*\d{1,3}$/.test(v) ? v.replace(/\s/g, '') : fallback;
+  }
+  var CYAN = cssRgb('--fx-rgb', '79,227,255'), ORANGE = cssRgb('--fx2-rgb', '255,159,67');
 
   function setup(canvas) {
     var ctx = canvas.getContext && canvas.getContext('2d');
@@ -336,6 +341,62 @@
     }, s, 30);
   }
 
+  // ------------------------------------------------------------------ 5. Reaktor-Kern (Chat, Stand 19)
+  // Ringe aus Segmenten im Raum, verschieden geneigt und schnell. Reagiert auf Tippen (Puls), Denken (schneller)
+  // und Sprechen (Schlag). Touchpad: drehen, Pinch = zoomen.
+  function reactor(canvas) {
+    var s = setup(canvas); if (!s) { return; }
+    var rings = [], energy = 0, cam = { yaw: 0.5, pitch: 0.35, vy: 0, vp: 0, zoom: 1 };
+    [[1.0, 0.0, 0.0, 48, 0.6], [0.82, 1.1, 0.4, 36, -0.9], [0.66, 0.5, 1.2, 28, 1.3], [1.18, 0.25, 0.7, 64, -0.35], [0.45, 1.4, 0.2, 18, 2.0]]
+      .forEach(function (r, i) { rings.push({ r: r[0], tx: r[1], tz: r[2], n: r[3], sp: r[4], a: 0, col: i % 2 ? ORANGE : CYAN }); });
+    var c = controls(canvas, cam, {
+      drag: function (dx, dy) { cam.vy = dx * 0.004; cam.vp = dy * 0.003; },
+      wheel: function (dx, dy) { cam.vy += dx * 0.0006; cam.vp += dy * 0.0005; },
+      pinch: function (d) { cam.zoom = Math.max(0.6, Math.min(1.8, cam.zoom * Math.exp(-d * 0.01))); }
+    });
+    var area = document.getElementById('text');
+    if (area) { area.addEventListener('input', function () { energy = Math.min(1.5, energy + 0.25); }); }
+    function rot(p, ax, az) {                                       // Punkt um x und z neigen
+      var y = p[1] * Math.cos(ax) - p[2] * Math.sin(ax), z = p[1] * Math.sin(ax) + p[2] * Math.cos(ax);
+      var x = p[0] * Math.cos(az) - y * Math.sin(az); y = p[0] * Math.sin(az) + y * Math.cos(az);
+      return [x, y, z];
+    }
+    animate(function (dt, t) {
+      var ctx = s.ctx, w = s.w, h = s.h, R = Math.min(w, h) * 0.36 * cam.zoom, body = document.body;
+      var think = body.classList.contains('is-thinking'), speak = body.classList.contains('speaking') || body.classList.contains('listening');
+      energy = Math.max(0, energy - dt * 0.8);
+      var boost = 1 + energy + (think ? 2.5 : 0) + (speak ? 0.8 + 0.6 * Math.sin(t / 90) : 0);
+      cam.yaw += cam.vy + (reduce || !c.idle() ? 0 : 0.002); cam.pitch += cam.vp; cam.vy *= 0.94; cam.vp *= 0.9;
+      cam.pitch = Math.max(-1.2, Math.min(1.2, cam.pitch));
+      var cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw), cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+      ctx.clearRect(0, 0, w, h);
+      // Kern
+      var core = R * (0.16 + 0.04 * Math.min(1.5, energy) + (speak ? 0.03 * Math.sin(t / 90) : 0));
+      var g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, core * 3.2);
+      g.addColorStop(0, 'rgba(255,240,230,0.95)'); g.addColorStop(0.25, 'rgba(' + CYAN + ',0.75)'); g.addColorStop(1, 'rgba(' + CYAN + ',0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(w / 2, h / 2, core * 3.2, 0, 6.283); ctx.fill();
+      // Ringe aus Segmenten
+      for (var k = 0; k < rings.length; k++) {
+        var ring = rings[k]; ring.a += dt * ring.sp * boost * (reduce ? 0 : 1);
+        var pts = [];
+        for (var i = 0; i < ring.n; i++) {
+          var an = ring.a + i * 6.283 / ring.n, p = rot([Math.cos(an) * ring.r, 0, Math.sin(an) * ring.r], ring.tx, ring.tz);
+          var x1 = p[0] * cy + p[2] * sy, z1 = -p[0] * sy + p[2] * cy, y2 = p[1] * cp - z1 * sp, z2 = p[1] * sp + z1 * cp;
+          pts.push([w / 2 + x1 * R, h / 2 - y2 * R, (z2 + 1.3) / 2.6]);
+        }
+        for (i = 0; i < ring.n; i += 2) {                           // Segmente mit Lücken
+          var a = pts[i], b = pts[(i + 1) % ring.n], dep = (a[2] + b[2]) / 2;
+          ctx.strokeStyle = 'rgba(' + ring.col + ',' + (0.2 + 0.8 * dep).toFixed(2) + ')';
+          ctx.lineWidth = 1 + 3 * dep;
+          ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+        }
+        var lead = pts[0];                                          // Lichtpunkt läuft mit
+        ctx.fillStyle = 'rgba(255,240,230,' + (0.4 + 0.6 * lead[2]).toFixed(2) + ')';
+        ctx.beginPath(); ctx.arc(lead[0], lead[1], 2 + 2.5 * lead[2], 0, 6.283); ctx.fill();
+      }
+    }, s, 30);
+  }
+
   // ------------------------------------------------------------------ Start
   function boot() {
     Array.prototype.forEach.call(document.querySelectorAll('canvas[data-hud]'), function (c) {
@@ -343,6 +404,7 @@
       c.parentNode.classList.add('hud-on');
       try {
         if (kind === 'sphere') { sphere(c); } else if (kind === 'swirl') { swirl(c); } else if (kind === 'tunnel') { tunnel(c); }
+        else if (kind === 'reactor') { reactor(c); }
       } catch (e) { c.parentNode.classList.remove('hud-on'); /* bei Fehlern bleibt die einfache Ansicht */ }
     });
     if (document.body.classList.contains('portal-on')) { try { portal(); } catch (e) { /* CSS-Portal bleibt */ } }
