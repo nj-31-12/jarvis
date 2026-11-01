@@ -585,3 +585,9 @@ body.theme-red{background-size:100% 100%,40px 40px,40px 40px;background-repeat:n
 .voicefx{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--muted);margin-left:12px}
 .voicefx[hidden]{display:none}
 .voicefx select{font:inherit;font-size:.8rem;padding:4px 8px;border-radius:8px;background:rgba(20,6,8,.8);color:var(--fg);border:1px solid var(--line)}
+.voice-ctl .talk{display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--muted)}
+.voice-ctl .talk[hidden]{display:none}
+.voice-ctl .talk input{width:auto}
+body.talk-on .voice-ctl .talk{color:var(--accent2);font-weight:600}
+button.speak.nudge{animation:nudge 1.2s ease-in-out infinite;color:var(--fg)}
+@keyframes nudge{50%{box-shadow:0 0 0 2px var(--accent),0 0 18px var(--glow)}}

@@ -282,6 +282,11 @@ class ChatService:
         self.store = store
         self.limiter = RateLimiter(RATE_LIMIT_MESSAGES, RATE_LIMIT_SECONDS, clock)
         self.system_prompt = build_system_prompt(jarvis.cfg)
+        # Stand 22: Gesprächsmodus – kurze, gut sprechbare Antworten ohne Tabellen und Emojis
+        self.voice_prompt = build_system_prompt(jarvis.cfg, mode="voice") + (
+            "\n## Gesprächsmodus\nNoah spricht gerade mit dir, deine Antwort wird vorgelesen. Antworte in höchstens "
+            "vier kurzen Sätzen, natürlich und direkt. Keine Listen, keine Überschriften, keine Links. Wenn es passt, "
+            "ende mit einer kurzen Rückfrage, damit das Gespräch weiterläuft.\n")
 
     def withheld_reason(self, message: dict) -> str | None:
         """Grund, warum eine gespeicherte Antwort zurückgehalten wird – oder None.
@@ -326,7 +331,7 @@ class ChatService:
     def test_mode(self) -> bool:
         return bool(getattr(self.jarvis.llm.model, "is_test_mode", True))
 
-    def send(self, conv: str, text: str, rate_key: str) -> dict:
+    def send(self, conv: str, text: str, rate_key: str, voice: bool = False) -> dict:
         """Speichert deine Nachricht, erzeugt die Antwort und gibt sie zurück."""
         if not self.store.exists(conv):
             raise ChatError("Dieses Gespräch gibt es nicht.")
@@ -335,7 +340,7 @@ class ChatService:
             raise ChatError("Etwas viele Nachrichten auf einmal. Bitte eine Minute warten.")
         self.store.add(conv, ROLE_USER, text)
         try:
-            role, reply, mode, cost, *rest = self._answer(conv, text)
+            role, reply, mode, cost, *rest = self._answer(conv, text, voice)
         except Exception as exc:  # noqa: BLE001 – jede gespeicherte Frage bekommt eine Antwort
             self.jarvis.audit.write("chat_error", error=type(exc).__name__)
             role, reply, mode, cost, rest = (ROLE_SYSTEM, "Bei dieser Anfrage ist ein Fehler aufgetreten. Deine "
@@ -353,10 +358,10 @@ class ChatService:
         text = re.sub(r"<<<|>>>", "‹‹‹", text)
         return re.sub(r"(?mi)^(\s*)(#{1,6}\s*quelle\s*:)", r"\1[Text] \2", text)
 
-    def _prompt_with_knowledge(self, context: list) -> str:
+    def _prompt_with_knowledge(self, context: list, voice: bool = False) -> str:
         from .lessons import lessons_prompt
         mark = secrets.token_hex(4)               # Zufallsmarke: nicht vorhersagbar, nicht nachzuahmen
-        base = self.system_prompt
+        base = self.voice_prompt if voice else self.system_prompt
         learned = "" if self.jarvis.kill.is_active() else lessons_prompt(self.jarvis.kb, mark)
         if learned:                               # Version 5.3: bestätigte Lektionen gehen immer mit
             base = base.rstrip("\n") + "\n\n" + learned + "\n"
@@ -390,7 +395,7 @@ class ChatService:
                    for h in hits]
         return ROLE_JARVIS, "\n".join(lines), "befehl", 0.0, sources
 
-    def _answer(self, conv: str, text: str) -> tuple:
+    def _answer(self, conv: str, text: str, voice: bool = False) -> tuple:
         if text.startswith("/"):
             cmd = text.split(None, 1)[0].lower()
             if cmd in LATER_COMMANDS:
@@ -412,7 +417,7 @@ class ChatService:
         sources = [{"id": c["id"], "title": c["title"], "fp": quote_fingerprints(c["excerpt"])} for c in context]
         from .data_guard import banner as guard_banner, check as guard_check
         guard = guard_check(text)                  # Stand 18: fordert die Nachricht sensible Daten an?
-        system = self._prompt_with_knowledge(context)
+        system = self._prompt_with_knowledge(context, voice)
         if guard["level"]:
             self.jarvis.audit.write("data_request_flagged", level=guard["level"], signals=guard["signals"])
             system += ("\n\n## Sicherheitshinweis zu dieser Nachricht\nDie Nachricht zeigt Merkmale einer Anfrage nach "

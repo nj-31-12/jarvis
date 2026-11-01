@@ -107,3 +107,45 @@ class WebCoachUndSprache(JarvisBase):
         self.assertIn('<div class="voice-ctl" hidden>', page)
         self.assertIn('id="wake"', page)
         self.assertNotIn('id="wake" checked', page)                         # Wake-Word standardmäßig AUS
+
+
+class Gespraechsmodus(JarvisBase):
+    def test_gespraechsmodus_nutzt_kurze_sprechbare_anweisung(self):
+        from unittest import mock
+        svc = ChatService(self.jarvis, ChatStore(self.tmp / "g.db"))
+        seen = []
+        orig = self.jarvis.llm.chat
+
+        def spy(system, history, text, **kw):
+            seen.append(system)
+            return orig(system, history, text, **kw)
+        with mock.patch.object(self.jarvis.llm, "chat", side_effect=spy):
+            conv = svc.store.new_conversation()
+            svc.send(conv, "Wie war mein Tag?", "t", voice=True)
+            svc.send(conv, "Und morgen?", "t")
+        self.assertIn("## Gesprächsmodus", seen[0])
+        self.assertNotIn("## Gesprächsmodus", seen[1])
+
+    def test_web_formular_gibt_modus_weiter(self):
+        from unittest import mock
+        auth = wa.AuthStore(self.tmp / "d", self.jarvis.audit, clock=self.clock, iterations=1000)
+        auth.set_password("nj", PW)
+        app = WebApp(self.cfg, auth, self.jarvis, clock=self.clock)
+
+        def req(method, path, body=None, sid=None):
+            h = {"Host": HOST}
+            if sid:
+                h["Cookie"] = f"jarvis_session={sid}"
+            return app.handle(method, path, h, urlencode(body).encode() if body is not None else b"")
+        nonce = re.search(r'name="nonce" value="([^"]+)"', req("GET", "/login").body.decode()).group(1)
+        sid = req("POST", "/login", {"username": "nj", "password": PW, "nonce": nonce}).header("Set-Cookie").split(";")[0].split("=", 1)[1]
+        page = req("GET", "/chat", sid=sid).body.decode()
+        self.assertIn('id="talk"', page)
+        self.assertIn('name="modus"', page)
+        csrf = re.search(r'name="csrf" value="([^"]+)"', page).group(1)
+        conv = re.search(r'name="g" value="([^"]+)"', page).group(1)
+        with mock.patch.object(app.chat, "send", return_value={}) as send:
+            req("POST", "/chat", {"csrf": csrf, "g": conv, "text": "Hallo", "modus": "gespraech"}, sid=sid)
+            req("POST", "/chat", {"csrf": csrf, "g": conv, "text": "Hallo", "modus": "irgendwas"}, sid=sid)
+        self.assertTrue(send.call_args_list[0].kwargs["voice"])
+        self.assertFalse(send.call_args_list[1].kwargs["voice"])

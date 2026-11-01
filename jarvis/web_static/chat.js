@@ -9,7 +9,7 @@
   var auto = document.getElementById('autovoice');
   var autoLabel = auto ? auto.parentNode : null;
   var current = null;
-  var startWake = function () {}, stopWake = function () {};
+  var startWake = function () {}, stopWake = function () {}, afterSpeak = function () {};
 
   function store(kind, key, value) {
     try {
@@ -38,7 +38,7 @@
     });
     if (!pick) { voices.forEach(function (v) { if (!pick && v.lang && v.lang.indexOf('de') === 0) { pick = v; } }); }
     if (pick) { u.voice = pick; }
-    u.onend = function () { body.classList.remove('speaking'); };
+    u.onend = function () { body.classList.remove('speaking'); afterSpeak(); };
     body.classList.add('speaking');
     window.speechSynthesis.speak(u);
   }
@@ -60,13 +60,18 @@
     var audio = new Audio('/chat/stimme?id=' + encodeURIComponent(id) + '&fx=' + encodeURIComponent(fx));
     current = audio;
     audio.onplaying = function () { body.classList.add('speaking'); if (btn) { btn.disabled = false; btn.textContent = '⏹ Stopp'; } };
-    audio.onended = function () { body.classList.remove('speaking'); if (btn) { btn.textContent = '🔊 Vorlesen'; } current = null; };
+    audio.onended = function () { body.classList.remove('speaking'); if (btn) { btn.textContent = '🔊 Vorlesen'; } current = null; afterSpeak(); };
     audio.onerror = function () {                       // keine Mac-Stimme → Browser-Stimme
       if (btn) { btn.disabled = false; btn.textContent = '🔊 Vorlesen'; }
       current = null; browserVoice(textOf(id));
     };
     var p = audio.play();
-    if (p && p.catch) { p.catch(function () { if (btn) { btn.disabled = false; btn.textContent = '🔊 Vorlesen'; } }); }
+    if (p && p.catch) { p.catch(function () {
+      if (btn) { btn.disabled = false; btn.textContent = '🔊 Vorlesen'; btn.classList.add('nudge'); }
+      var h = document.getElementById('vchint');
+      if (h) { h.textContent = 'Der Browser blockiert automatischen Ton. Einmal auf 🔊 klicken – oder Ton für diese Seite erlauben.'; }
+      afterSpeak();
+    }); }
   }
 
   Array.prototype.forEach.call(buttons, function (btn) {
@@ -185,6 +190,52 @@
       // Nach JARVIS' gesprochener Antwort wieder zuhören
       setTimeout(startWake, 1200);
     }
+  }
+
+  // ------------------------------------------------------------ Stand 22: Gesprächsmodus
+  // Du sprichst → JARVIS antwortet laut → hört automatisch wieder zu. „Stopp“, „Ende“ oder „Danke Jarvis“ beendet.
+  var talk = document.getElementById('talk'), modus = document.getElementById('modus');
+  if (talk && SR && ctl) {
+    var talkLabel = talk.parentNode, talkRec = null, quiet = 0;
+    talkLabel.hidden = false;
+    talk.checked = store('local', 'jarvis-talk') === '1';
+    var setMode = function () {
+      if (modus) { modus.value = talk.checked ? 'gespraech' : ''; }
+      if (talk.checked && auto) { auto.checked = true; store('local', 'jarvis-autovoice', '1'); }
+      body.classList.toggle('talk-on', talk.checked);
+    };
+    var listenOnce = function () {
+      if (!talk.checked || talkRec || body.classList.contains('speaking')) { return; }
+      stopWake(true);
+      talkRec = new SR(); talkRec.lang = 'de-DE'; talkRec.continuous = false; talkRec.interimResults = true;
+      var heard = '';
+      talkRec.onresult = function (e) {
+        heard = ''; for (var i = 0; i < e.results.length; i++) { heard += e.results[i][0].transcript; }
+        if (area) { area.value = heard; } say('🗣 ' + heard);
+      };
+      talkRec.onend = function () {
+        talkRec = null; body.classList.remove('listening');
+        var t = heard.trim();
+        if (/^(stopp?|ende|beenden|danke,? jarvis|tschüss)\b/i.test(t)) {
+          talk.checked = false; store('local', 'jarvis-talk', '0'); setMode(); say('Gespräch beendet.'); startWake(); return;
+        }
+        if (t) { quiet = 0; submitText(t); return; }
+        quiet += 1;
+        if (quiet < 2) { setTimeout(listenOnce, 300); } else { say('Ich warte. Sag etwas, halte ⌥ – oder schalte den Gesprächsmodus aus.'); quiet = 0; startWake(); }
+      };
+      talkRec.onerror = function (e) { if (e.error === 'not-allowed') { talk.checked = false; setMode(); say('Mikrofon nicht erlaubt.'); } };
+      try { talkRec.start(); body.classList.add('listening'); say('🗣 Ich höre zu …'); } catch (err) { talkRec = null; }
+    };
+    afterSpeak = function () { if (talk.checked) { setTimeout(listenOnce, 450); } };
+    talk.addEventListener('change', function () {
+      store('local', 'jarvis-talk', talk.checked ? '1' : '0'); setMode();
+      if (talk.checked) { listenOnce(); } else if (talkRec) { try { talkRec.stop(); } catch (err) { /* egal */ } }
+    });
+    setMode();
+    // Keine frische Antwort zum Vorlesen (z. B. gerade eingeschaltet)? Dann direkt zuhören.
+    if (talk.checked && !document.querySelector('article.msg-jarvis.fresh')) { setTimeout(listenOnce, 900); }
+  } else if (talk && ctl) {
+    talk.parentNode.hidden = true;
   }
 
   var end = document.getElementById('ende');

@@ -505,6 +505,8 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages):
             return Response(400, "Ungültige Anfrage (zu viele Felder).", "text/plain; charset=utf-8")
         field = lambda name: (form.get(name) or [""])[0]  # noqa: E731
 
+        if method == "GET" and path == "/favicon.ico":           # Browser fragen danach – das Symbol kommt aus icon.svg
+            return redirect("/static/icon.svg")
         if method == "GET" and path.startswith("/static/"):
             return self._static(path[len("/static/"):])
         if path == "/login":
@@ -627,7 +629,7 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages):
                     conv = self.chat.store.new_conversation()
                     session.data["conv"] = conv
                     return redirect(f"/chat?g={conv}")
-                return self._chat_send(session, field("g"), field("text"))
+                return self._chat_send(session, field("g"), field("text"), voice=field("modus") == "gespraech")
         if path.startswith("/aufgaben"):
             if not session:
                 return redirect("/login")
@@ -687,7 +689,8 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages):
     def _static(self, name: str) -> Response:
         allowed = {"jarvis.css": "text/css; charset=utf-8", "brain.js": "text/javascript; charset=utf-8",
                    "chat.js": "text/javascript; charset=utf-8",
-                   "hud.js": "text/javascript; charset=utf-8"}
+                   "hud.js": "text/javascript; charset=utf-8",
+                   "icon.svg": "image/svg+xml"}
         if name not in allowed:
             return Response(404, "Nicht gefunden.", "text/plain; charset=utf-8")
         resp = Response(200, (STATIC_DIR / name).read_bytes(), allowed[name])
@@ -710,7 +713,8 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages):
             body_class = (body_class + " theme-glass").strip()
         return (f"<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\">"
                 f"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
-                f"<title>{html.escape(title)} · JARVIS</title><link rel=\"stylesheet\" href=\"/static/jarvis.css\">"
+                f"<title>{html.escape(title)} · JARVIS</title><link rel=\"icon\" href=\"/static/icon.svg\" type=\"image/svg+xml\">"
+                f"<link rel=\"stylesheet\" href=\"/static/jarvis.css\">"
                 f"</head><body class=\"{body_class}\">{PORTAL if 'portal-on' in body_class.split() else ''}"
                 f"{nav}<main class=\"wrap\">{inner}</main></body></html>")
 
@@ -827,11 +831,11 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages):
         return Response(200, self._page("Übersicht", inner, body_class="wide", session=session, active="home"))
 
     # ------------------------------------------------------------------ Chat
-    def _chat_send(self, session: wa.Session, conv: str, text: str) -> Response:
+    def _chat_send(self, session: wa.Session, conv: str, text: str, voice: bool = False) -> Response:
         if not self.chat.store.exists(conv):
             return Response(404, self._page("Chat", "<p>Dieses Gespräch gibt es nicht.</p>", session=session))
         try:
-            self.chat.send(conv, text, rate_key=session.username)
+            self.chat.send(conv, text, rate_key=session.username, voice=voice)
         except ChatError as exc:
             session.data["flash"] = str(exc)
             session.data["draft"] = text[:MAX_MESSAGE_CHARS]
@@ -1109,11 +1113,12 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages):
 <section class="chat" aria-label="Gesprächsverlauf">{''.join(parts)}<div id="ende"></div>
 {err}
 <form class="composer" method="post" action="/chat">
-<input type="hidden" name="csrf" value="{csrf}"><input type="hidden" name="g" value="{conv}">
+<input type="hidden" name="csrf" value="{csrf}"><input type="hidden" name="g" value="{conv}"><input type="hidden" name="modus" id="modus" value="">
 <label for="text">Deine Nachricht</label>
 <textarea id="text" name="text" rows="3" maxlength="{MAX_MESSAGE_CHARS}" required autofocus placeholder="Frag JARVIS etwas … oder /hilfe">{html.escape(draft)}</textarea>
 <div class="voice-ctl" hidden><button type="button" class="mic ghost" id="mic" aria-pressed="false">🎙 Halten zum Sprechen</button>
-<label class="wake" hidden><input type="checkbox" id="wake"> Auf „Jarvis“ hören</label><span class="vc-hint" id="vchint" aria-live="polite"></span></div>
+<label class="wake" hidden><input type="checkbox" id="wake"> Auf „Jarvis“ hören</label>
+<label class="talk" hidden><input type="checkbox" id="talk"> 🗣 Gesprächsmodus</label><span class="vc-hint" id="vchint" aria-live="polite"></span></div>
 <button type="submit">Senden</button>
 </form></section>
 <div class="side-col"><section class="panel reactor-panel" aria-label="JARVIS-Kern"><canvas class="reactor-canvas" data-hud="reactor" aria-label="JARVIS-Kern – reagiert beim Tippen, Denken und Sprechen. Mit dem Touchpad drehbar."></canvas>

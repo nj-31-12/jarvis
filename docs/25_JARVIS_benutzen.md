@@ -21,6 +21,7 @@ Stoppt einen eventuell noch laufenden alten JARVIS, startet den neuen und öffne
 ## Sprechen und Hören
 - **Sprechen:** ⌥ (Option) halten oder 🎙-Knopf halten (Chrome/Safari). In Firefox: zweimal `fn` (Mac-Diktat).
 - **„Jarvis“ rufen:** Schalter „Auf ‚Jarvis' hören“ (nur Chrome/Safari, Ton geht zur Erkennung an Google/Apple).
+- **🗣 Gesprächsmodus:** Schalter im Chat (Chrome/Safari). Du sprichst, JARVIS antwortet laut und hört danach von selbst wieder zu. „Stopp“, „Ende“ oder „Danke Jarvis“ beendet das Gespräch.
 - **JARVIS hören:** 🔊 an einer Antwort oder „Antworten automatisch sprechen“. Stimme: 🎬 Film · JARVIS · Natürlich.
 - Beste Mac-Stimme: Systemeinstellungen → Bedienungshilfen → Gesprochene Inhalte → Systemstimme → Anpassen → „Markus“.
 
