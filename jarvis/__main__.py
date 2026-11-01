@@ -27,6 +27,8 @@
   chat-pruefen  Zeigt Chat-Antworten, deren Quellen inzwischen vertraulich/unauffindbar sind (nur lesen)
   vorlesen      Text mit der Mac-Stimme im Erzähler-Stil vorlesen (nur macOS, offline)
   wissen-import <Ordner|.zip>  Wissenspaket (Markdown-Notizen) ins Second Brain übernehmen (nur neue Dateien)
+  werkstatt-an  Websuche + Webseiten-Check für die Auftrags-Zentrale einschalten (Stand 23)
+  werkstatt-aus Websuche + Webseiten-Check wieder ausschalten
 """
 from __future__ import annotations
 
@@ -431,8 +433,44 @@ def read_aloud(text: str) -> None:
     print(mac_say(text, NARRATOR))
 
 
+def werkstatt(on: bool, path=None) -> None:
+    """Stand 23: schaltet Websuche/Webseiten-Check in config/jarvis.json ein oder aus. Ändert nur diese Angaben."""
+    import json
+    import os
+    from pathlib import Path
+    from .config import ENV_CONFIG, PROJECT_ROOT
+    path = Path(path or os.environ.get(ENV_CONFIG) or PROJECT_ROOT / "config" / "jarvis.json")
+    data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    if not isinstance(data, dict):
+        raise ValueError(f"{path} enthält kein JSON-Objekt. Nichts geändert.")
+    w = data.setdefault("werkstatt", {})
+    w["web_research_allowed"] = bool(on)
+    added = []
+    if on:
+        for name, entry in ((data.get("ai") or {}).get("models") or {}).items():
+            if isinstance(entry, dict) and isinstance(entry.get("tasks"), list):
+                for t in ("websuche", "webseite"):
+                    if t not in entry["tasks"]:
+                        entry["tasks"].append(t)
+                        added.append(f"{name}: {t}")
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+    if on:
+        print("✅ Werkstatt eingeschaltet: JARVIS darf im Auftrag Betriebe im Internet suchen und öffentliche")
+        print("   Webseiten prüfen (nur lesen). Er sendet NICHTS an Betriebe. Kosten pro Suche: höchstens ca. 0,15 €.")
+        if added:
+            print("   Aufgaben ergänzt: " + ", ".join(added))
+        print("   Ausschalten jederzeit mit: python3 -m jarvis werkstatt-aus")
+    else:
+        print("✅ Werkstatt ausgeschaltet: keine Websuche, kein Webseiten-Check. Webseiten bauen geht weiterhin.")
+    print("   Bitte JARVIS neu starten, damit die Änderung gilt.")
+
+
 def main(argv: list[str]) -> None:
     cmd = argv[1] if len(argv) > 1 else "hilfe"
+    if cmd in ("werkstatt-an", "werkstatt-aus"):
+        return werkstatt(cmd == "werkstatt-an")
     if cmd == "demo":
         return demo()
     if cmd == "chat":

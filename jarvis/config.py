@@ -86,6 +86,9 @@ DEFAULTS = {
     # Begriffe, die in keiner Aktion vorkommen dürfen (Bank, Ausbildungsbetrieb ...).
     "forbidden_terms": ["iban", "bic", "onlinebanking", "pin", "tan", "kreditkarte"],
     "telegram": {"allowed_user_ids": [], "approval_chat_id": None},
+    # Stand 23: Webseiten-Werkstatt. Websuche + Webseiten-Check erst nach `python3 -m jarvis werkstatt-an`.
+    "werkstatt": {"web_research_allowed": False, "output_dir": "~/JARVIS/websites", "max_betriebe": 5,
+                  "max_suchen": 4, "max_eur_pro_suche": 0.15},
 }
 
 SECRET_KEYS = ("JARVIS_APPROVAL_SECRET", "TELEGRAM_BOT_TOKEN")

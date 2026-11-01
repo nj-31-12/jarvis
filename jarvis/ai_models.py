@@ -33,7 +33,7 @@ from .outbound import ExternalAIBlocked
 MODEL_NAME = re.compile(r"[a-z0-9][a-z0-9._:/-]{0,63}")
 KEY_ENV_NAME = re.compile(r"JARVIS_[A-Z0-9_]{2,60}")
 REVIEW_VALID_DAYS = 180
-TASKS = {"chat", "idea", "post", "research", "briefing", "skill"}
+TASKS = {"chat", "idea", "post", "research", "briefing", "skill", "websuche", "webseite"}
 
 # Feldnamen, die in einer Modell-Konfiguration NIE vorkommen dürfen: Schlüssel gehören in die .env
 FORBIDDEN_FIELDS = re.compile(r"(?i)(api[_-]?key|secret|token|passwor|password|bearer|credential)")

@@ -33,7 +33,14 @@ PRICES_USD_PER_MTOK = {
 }
 
 # Höchstzahl Ausgabe-Tokens je Aufgabe (inkl. Denkschritte des Modells). Begrenzt die Kosten pro Anfrage.
-MAX_OUTPUT_TOKENS = {"chat": 4096, "idea": 4096, "research": 6144, "briefing": 4096, "post": 2048, "skill": 2048}
+MAX_OUTPUT_TOKENS = {"chat": 4096, "idea": 4096, "research": 6144, "briefing": 4096, "post": 2048, "skill": 2048,
+                     "websuche": 4096, "webseite": 4096}
+
+# Stand 23: Websuche (Server-Werkzeug von Claude). Preis laut Anbieter: 10 $ je 1.000 Suchen.
+# Suchergebnisse werden als Eingabe-Tokens berechnet; je Suche rechnen wir vorsichtig mit bis zu 20.000 Tokens.
+WEB_SEARCH_TOOL = "web_search_20250305"
+WEB_SEARCH_USD = 0.01
+WEB_SEARCH_TOKENS = 20_000
 
 # Stand 18: Alltag mit „medium“ (gründlicher als „low“). Die Höchstkosten bleiben gleich, denn max_tokens begrenzt
 # Antwort UND Denkschritte. Die Antwortprüfung läuft weiter mit „low“.
@@ -48,6 +55,11 @@ TASK_HINTS = {
                 "was du nicht sicher weißt, als Schätzung. Erfinde keine Quellen.",
     "briefing": "Erstelle ein kurzes, klares Briefing aus den folgenden Angaben.",
     "skill": "Bearbeite die folgende Aufgabe knapp und sachlich.",
+    "webseite": "Du bist Texter und Webdesigner. Antworte NUR mit einem JSON-Objekt (ohne Erklärung, ohne "
+                "Markdown) im verlangten Format. Erfinde keine Preise, Auszeichnungen, Bewertungen oder Kontaktdaten.",
+    "websuche": "Du recherchierst im Internet. Nutze die Websuche. Antworte am Ende NUR mit dem verlangten JSON. "
+                "Nur öffentlich sichtbare Firmenangaben (Name, Ort, Webseite) – keine Privatpersonen, keine "
+                "E-Mail-Adressen, keine Telefonnummern.",
 }
 
 
@@ -102,12 +114,14 @@ class AnthropicModel:
         self.cost_per_call_eur = 0.0       # die Reservierung kommt aus der Konfiguration (cost_per_call_eur)
 
     # ------------------------------------------------------------------ Kosten
-    def max_cost_eur(self, task: str, chars: int) -> float:
-        """Höchstmögliche Kosten einer Anfrage: Zeichen (≥ Tokens) × Eingabepreis + max. Ausgabe × Ausgabepreis."""
+    def max_cost_eur(self, task: str, chars: int, searches: int = 0) -> float:
+        """Höchstmögliche Kosten einer Anfrage: Zeichen (≥ Tokens) × Eingabepreis + max. Ausgabe × Ausgabepreis.
+        Mit Websuche zusätzlich: je Suche Gebühr + vorsichtig geschätzte Ergebnis-Tokens."""
         price_in, price_out = PRICES_USD_PER_MTOK[self.name]
         out_tokens = MAX_OUTPUT_TOKENS.get(task, 2048)
-        usd = (max(int(chars), 0) * price_in + out_tokens * price_out) / 1_000_000
-        return usd * USD_TO_EUR
+        searches = max(int(searches), 0)
+        usd = ((max(int(chars), 0) + searches * WEB_SEARCH_TOKENS) * price_in + out_tokens * price_out) / 1_000_000
+        return (usd + searches * WEB_SEARCH_USD) * USD_TO_EUR
 
     def actual_cost_eur(self, usage: dict) -> float | None:
         """Tatsächliche Kosten aus der Antwort. None, wenn keine verwertbare Angabe vorliegt."""
@@ -119,9 +133,11 @@ class AnthropicModel:
             tin += int(usage.get("cache_creation_input_tokens") or 0) * 1.25
             tin += int(usage.get("cache_read_input_tokens") or 0) * 0.1
             tout = int(usage["output_tokens"])
+            stu = usage.get("server_tool_use") if isinstance(usage.get("server_tool_use"), dict) else {}
+            searches = int(stu.get("web_search_requests") or 0)
         except (KeyError, TypeError, ValueError):
             return None
-        return (tin * price_in + tout * price_out) / 1_000_000 * USD_TO_EUR
+        return ((tin * price_in + tout * price_out) / 1_000_000 + searches * WEB_SEARCH_USD) * USD_TO_EUR
 
     # ------------------------------------------------------------------ Aufrufe (nur über LLMRouter)
     def chat(self, *_a, **_k):
@@ -140,6 +156,15 @@ class AnthropicModel:
         body = {"model": self.name, "max_tokens": MAX_OUTPUT_TOKENS.get(task, 2048),
                 "system": "Du bist JARVIS, Noahs persönlicher Assistent. Antworte auf Deutsch. " + hint,
                 "messages": to_messages([], text), "output_config": {"effort": "low"}}
+        return self._send(body, api_key)
+
+    def search_billed(self, text: str, api_key: str, max_uses: int = 5):
+        """Stand 23: Recherche mit Websuche (Server-Werkzeug). Höchstens max_uses Suchen, Standort Deutschland."""
+        body = {"model": self.name, "max_tokens": MAX_OUTPUT_TOKENS["websuche"],
+                "system": "Du bist JARVIS, Noahs Recherche-Assistent. Antworte auf Deutsch. " + TASK_HINTS["websuche"],
+                "messages": to_messages([], text), "output_config": {"effort": "low"},
+                "tools": [{"type": WEB_SEARCH_TOOL, "name": "web_search", "max_uses": max(1, min(int(max_uses), 10)),
+                           "user_location": {"type": "approximate", "country": "DE", "timezone": "Europe/Berlin"}}]}
         return self._send(body, api_key)
 
     def _send(self, body: dict, api_key: str):
@@ -186,6 +211,8 @@ class AnthropicModel:
             return ("Dazu kann ich keine Antwort geben (Claude hat die Anfrage aus Sicherheitsgründen abgelehnt). "
                     "Formuliere die Frage gern anders.", cost)
         if not text:
+            if stop == "pause_turn":
+                return ("Die Recherche wurde nach vielen Suchschritten angehalten und ist unvollständig.", cost)
             if stop == "max_tokens":
                 return ("Meine Antwort wurde zu lang und abgeschnitten. Stell die Frage bitte etwas enger.", cost)
             raise AIServiceError("Claude hat keine Textantwort geliefert.")

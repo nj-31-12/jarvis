@@ -25,6 +25,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from .web_brain import BrainPages
 from .web_team import TeamPages
+from .web_missions import MissionPages
 
 from . import web_auth as wa
 from .chat import MAX_MESSAGE_CHARS, ROLE_JARVIS, ROLE_SYSTEM, ROLE_USER, ChatError, ChatService, ChatStore
@@ -441,7 +442,7 @@ class TaskPages:
         return redirect("/aufgaben")
 
 
-class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages):
+class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages, MissionPages):
     def __init__(self, cfg: dict, auth: wa.AuthStore, jarvis=None, clock: Callable[[], float] = time.time):
         self.cfg = cfg
         self.port = int(cfg["web"]["port"])
@@ -531,6 +532,8 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages):
             if not session:
                 return redirect("/login")
             return self._home(session)
+        if path in ("/stimme", "/stimme/frage", "/stimme/ton") or path.startswith("/auftraege"):
+            return self._mission_routes(method, path, target, session, field)
         if path in ("/team", "/team/runde", "/team/daten"):
             if not session:
                 return redirect("/login")
@@ -676,6 +679,48 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages):
             return Response(405, "Methode nicht erlaubt.", "text/plain; charset=utf-8", [("Allow", "GET, POST")])
         return Response(404, self._page("Nicht gefunden", "<p>Diese Seite gibt es nicht.</p>"))
 
+    def _mission_routes(self, method: str, path: str, target: str, session, field) -> Response:
+        """Stand 23: Sprach-Ansicht und Auftrags-Zentrale."""
+        if not session:
+            return redirect("/login")
+        if self.jarvis is None:
+            return Response(503, self._page("JARVIS", "<p>Nicht verfügbar.</p>", session=session))
+        query = parse_qs(urlsplit(target).query, max_num_fields=8)
+        q = lambda k: (query.get(k) or [""])[0]  # noqa: E731
+        as_json = lambda d: Response(200, json.dumps(d, ensure_ascii=False), "application/json; charset=utf-8")  # noqa: E731
+        if method == "GET":
+            if path == "/stimme":
+                return Response(200, self._page("Stimme", self._voice_page(session, html.escape(session.csrf)),
+                                                body_class="wide voice-doc", session=session, active="stimme"))
+            if path == "/stimme/ton":
+                return self._voice_tone(session, q("k"), q("fx"))
+            if path == "/auftraege":
+                return Response(200, self._page("Aufträge", self._missions_page(session, html.escape(session.csrf), query),
+                                                body_class="wide", session=session, active="auftraege"))
+            if path == "/auftraege/daten":
+                return Response(200, self._missions_data(q("id"), q("ab")), "application/json; charset=utf-8")
+            if path == "/auftraege/stimme":
+                return self._missions_voice(q("id"), q("n"), q("fx"))
+            return Response(404, self._page("Nicht gefunden", "<p>Diese Seite gibt es nicht.</p>", session=session))
+        if method != "POST":
+            return Response(405, "Methode nicht erlaubt.", "text/plain; charset=utf-8")
+        if not wa.check_csrf(session, field("csrf")):
+            return Response(403, "Ungültiges Prüfzeichen.", "text/plain; charset=utf-8")
+        if path == "/stimme/frage":
+            return as_json(self._voice_ask(session, field("text")))
+        if path == "/auftraege/start":
+            return redirect(self._missions_start(session, field))
+        if path == "/auftraege/stop":
+            self._runner().stop(field("id"))
+            return redirect("/auftraege?id=" + (field("id") if re.fullmatch(r"[a-f0-9]{12}", field("id")) else ""))
+        if path == "/auftraege/oeffnen":
+            mid = field("id") if re.fullmatch(r"[a-f0-9]{12}", field("id")) else ""
+            msg = self._runner().open_result(mid)
+            if msg not in ("Geöffnet.", "Die Webseite ist im Browser geöffnet."):
+                session.data["mission_flash"] = msg
+            return redirect("/auftraege?id=" + mid)
+        return Response(404, "Nicht gefunden.", "text/plain; charset=utf-8")
+
     def _same_origin(self, headers: dict) -> bool:
         if headers.get("sec-fetch-site") not in (None, "same-origin", "none"):
             return False
@@ -688,7 +733,8 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages):
     # ------------------------------------------------------------------ Seiten
     def _static(self, name: str) -> Response:
         allowed = {"jarvis.css": "text/css; charset=utf-8", "brain.js": "text/javascript; charset=utf-8",
-                   "chat.js": "text/javascript; charset=utf-8",
+                   "chat.js": "text/javascript; charset=utf-8", "orb.js": "text/javascript; charset=utf-8",
+                   "voice.js": "text/javascript; charset=utf-8", "missions.js": "text/javascript; charset=utf-8",
                    "hud.js": "text/javascript; charset=utf-8",
                    "icon.svg": "image/svg+xml"}
         if name not in allowed:
@@ -701,6 +747,7 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages):
         nav = ""
         if session is not None:
             links = [("/", "Übersicht", "home"), ("/chat?portal=1", "Chat", "chat"), ("/gehirn", "Second Brain", "gehirn"), ("/team", "Team", "team"),
+                     ("/stimme", "Stimme", "stimme"), ("/auftraege", "Aufträge", "auftraege"),
                      ("/wissen", "Wissen", "wissen"),
                      ("/freigaben", "Freigaben", "freigaben"), ("/skills", "Skills", "skills"),
                      ("/aufgaben", "Aufgaben", "aufgaben")]

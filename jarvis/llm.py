@@ -179,16 +179,23 @@ class LLMRouter:
         claimed = float(claimed) if isinstance(claimed, (int, float)) and not isinstance(claimed, bool) else 0.0
         self.budget.charge(decision.model, max(decision.cost_eur, claimed, 0.0))
 
-    def _billed(self, model, decision, task: str, chars: int, send):
+    def _billed(self, model, decision, task: str, chars: int, send, searches: int = 0, cap_eur: float = 0.0):
         """Externe Anbindung (z. B. Claude): Höchstkosten prüfen → reservieren → senden → abrechnen.
 
         Lassen sich die Kosten nicht sicher begrenzen (Reservierung kleiner als die Höchstkosten), wird NICHT
         gesendet. Ohne Kostenangabe in der Antwort bleibt die volle Reservierung gebucht."""
         from .ai_models import ModelBlocked
         try:
-            worst = float(model.max_cost_eur(task, chars))
+            worst = float(model.max_cost_eur(task, chars, searches) if searches else model.max_cost_eur(task, chars))
         except Exception:  # noqa: BLE001 – unbekannter Preis = nicht begrenzbar
             raise ModelBlocked("Kosten dieses Modells sind nicht begrenzbar. Es wurde nichts gesendet.") from None
+        reserve = decision.cost_eur
+        if searches:                                   # Stand 23: Websuche hat ein eigenes, festes Höchstlimit
+            if worst > cap_eur:
+                raise ModelBlocked(f"Websuche: mögliche Höchstkosten ({worst:.3f} €) liegen über dem Limit "
+                                   f"werkstatt.max_eur_pro_suche ({cap_eur:.3f} €). Es wurde nichts gesendet.")
+            reserve = max(reserve, worst)
+            decision = type(decision)(decision.model, decision.kind, reserve, decision.key_env)
         if worst > decision.cost_eur:
             raise ModelBlocked(f"KI-Modell '{decision.model}': cost_per_call_eur ({decision.cost_eur:.4f} €) ist "
                                f"kleiner als die möglichen Höchstkosten ({worst:.4f} €). Bitte erhöhen. "
@@ -207,6 +214,18 @@ class LLMRouter:
             self.budget.settle(booking, float(actual))
             self._local.cost = float(actual)
         return text
+
+    def web_search(self, text: str, max_uses: int, cap_eur: float) -> str:
+        """Stand 23: Recherche mit Websuche. Gleiche Kette (Notaus → Erlaubnis → Schranke → Kostenbremse).
+        Testmodell/Ersatzmodelle ohne Websuche bekommen ModelBlocked – der Aufrufer zeigt dann den Testmodus."""
+        from .ai_models import ModelBlocked
+        self._local.cost = 0.0
+        model, decision = self._admit("websuche", len(text or ""))
+        if decision.kind == "test" or not hasattr(model, "search_billed"):
+            raise ModelBlocked("Websuche gibt es nur mit echter KI (Claude). Es wurde nichts gesendet.")
+        _, _, text = self._guard().prepare("", [], text)
+        return self._billed(model, decision, "websuche", len(text) + 1500,
+                            lambda key: model.search_billed(text, key, max_uses), searches=max_uses, cap_eur=cap_eur)
 
     def complete(self, task: str, text: str) -> str:
         self._local.cost = 0.0

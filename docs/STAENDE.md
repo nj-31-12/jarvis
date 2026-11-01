@@ -26,6 +26,7 @@ Der aktuelle Stand steht in der Datei `STAND.txt` im JARVIS-Ordner.
 | 19 | 01.11.2026 | Chat im roten Reaktor-Stil: 3D-Reaktor-Kern (reagiert auf Tippen/Denken/Sprechen), 3D-Einflug, Lichtrahmen, HUD-Eingabe | jarvis-aktuell | updates/ |
 | 20 | 01.11.2026 | Lila Glas-Design, KI-Team (9 Mitarbeiter, 5 Kategorien, 3D-Plattform, Team-Runden), Kopf-Ansicht und dunkles Gehirn-Inneres mit Licht-Wesen | jarvis-aktuell | updates/ |
 | 21 | 01.11.2026 | Stimm-Modi (🎬 Film, JARVIS, Natürlich), Update-Sperre gegen Rückschritte, Anleitung docs/25 | jarvis-aktuell | updates/ |
-| 22 | 01.11.2026 | Gesprächsmodus: JARVIS antwortet laut und hört automatisch wieder zu; Tab-Symbol | jarvis-aktuell | **jarvis-nj (aktiv)** |
+| 22 | 01.11.2026 | Gesprächsmodus: JARVIS antwortet laut und hört automatisch wieder zu; Tab-Symbol | jarvis-aktuell | updates/ |
+| 23 | 01.11.2026 | Sprach-Ansicht mit Plasma-Kern, Auftrags-Zentrale mit Live-Ablauf und Erzählerstimme, Webseiten-Werkstatt (Betriebe finden, Webseiten prüfen, Demo-Webseiten mit 3D bauen) | jarvis-aktuell | **jarvis-nj (aktiv)** |
 
 Neue Stände: Nummer +1, Eintrag hier und in `STAND.txt`.
