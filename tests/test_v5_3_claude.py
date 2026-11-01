@@ -128,7 +128,7 @@ class AnfrageUndAntwort(Base):
         self.assertEqual(body["model"], MODEL)
         self.assertEqual(body["system"], "SYSTEM")
         self.assertEqual([m["role"] for m in body["messages"]], ["user", "assistant", "user"])
-        self.assertEqual(body["output_config"], {"effort": "low"})
+        self.assertEqual(body["output_config"], {"effort": "medium"})          # Stand 18: gründlicher
         self.assertNotIn("temperature", body)
         self.assertLessEqual(body["max_tokens"], 4096)
 
@@ -145,6 +145,22 @@ class AnfrageUndAntwort(Base):
         with self.assertRaises(AIServiceError):
             self.router().chat("SYSTEM", [], "Hallo")
         self.assertNotIn(FAKE_KEY, self.audit_text())
+
+    def test_denktiefe_waehlbar_und_unbekannte_werte_sicher(self):
+        self.router().chat("S", [], "Hallo", effort="low")
+        self.assertEqual(self.fake.requests[-1]["body"]["output_config"], {"effort": "low"})
+        self.router().chat("S", [], "Hallo", effort="extrem")
+        self.assertEqual(self.fake.requests[-1]["body"]["output_config"], {"effort": "medium"})
+
+    def test_anderes_freigegebenes_modell_ueber_dieselbe_kette(self):
+        r = self.router()
+        sonnet = AnthropicModel("claude-sonnet-5-5", endpoint=self.fake.url)
+        with self.assertRaises(ModelBlocked):                                  # nicht in der Erlaubnisliste
+            r.chat("S", [], "Hallo", model=sonnet)
+        self.assertEqual(self.fake.requests, [])
+        r.policy.models["claude-sonnet-5-5"] = model_entry(cost_per_call_eur=0.08)
+        r.chat("S", [], "Hallo", model=sonnet)
+        self.assertEqual(self.fake.requests[-1]["body"]["model"], "claude-sonnet-5-5")
 
     def test_complete_fuer_ideen(self):
         out = self.router().complete("idea", "Proteinriegel-Shop")

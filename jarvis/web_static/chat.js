@@ -9,6 +9,7 @@
   var auto = document.getElementById('autovoice');
   var autoLabel = auto ? auto.parentNode : null;
   var current = null;
+  var startWake = function () {}, stopWake = function () {};
 
   function store(kind, key, value) {
     try {
@@ -96,6 +97,85 @@
   if (form && thinking) {
     form.addEventListener('submit', function () { stop(); thinking.hidden = false; body.classList.add('is-thinking'); });
   }
+  // ------------------------------------------------------------ Stand 18: Sprechen (Push-to-talk + Wake-Word)
+  // Spracherkennung des Browsers: Chrome/Safari (Ton geht zur Erkennung an Google/Apple). Firefox hat sie nicht →
+  // dort Hinweis auf die Mac-Diktierfunktion (fn fn). Gesprochenes wird wie Getipptes behandelt; freigeben geht nie.
+  var ctl = document.querySelector('.voice-ctl'), mic = document.getElementById('mic'), wake = document.getElementById('wake');
+  var hint = document.getElementById('vchint'), area = document.getElementById('text');
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  function say(t) { if (hint) { hint.textContent = t; } }
+  function submitText(t) {
+    t = (t || '').trim(); if (!t || !form || !area) { return; }
+    area.value = t; stopWake(true);
+    if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
+  }
+  if (ctl && mic && area) {
+    ctl.hidden = false;
+    if (!SR) {
+      mic.textContent = '🎙 Diktieren';
+      mic.addEventListener('click', function () { area.focus(); say('In Firefox: zweimal die fn-Taste drücken und sprechen (Mac-Diktat).'); });
+    } else {
+      // Push-to-talk: Knopf halten oder ⌥ (Option) halten
+      var ptt = null, pttText = '';
+      var startPTT = function () {
+        if (ptt) { return; }
+        stopWake(false); stop();
+        ptt = new SR(); ptt.lang = 'de-DE'; ptt.interimResults = true; ptt.continuous = true; pttText = '';
+        ptt.onresult = function (e) {
+          var all = ''; for (var i = 0; i < e.results.length; i++) { all += e.results[i][0].transcript; }
+          pttText = all; area.value = all; say('🎙 ' + all);
+        };
+        ptt.onerror = function (e) { say('Mikrofon: ' + (e.error || 'Fehler') + '. Bitte Mikrofon im Browser erlauben.'); };
+        try { ptt.start(); body.classList.add('listening'); mic.setAttribute('aria-pressed', 'true'); say('🎙 Ich höre …'); } catch (err) { ptt = null; }
+      };
+      var endPTT = function () {
+        if (!ptt) { return; }
+        var r = ptt; ptt = null; body.classList.remove('listening'); mic.setAttribute('aria-pressed', 'false');
+        r.onend = function () { if (pttText.trim()) { submitText(pttText); } else { say('Nichts verstanden.'); startWake(); } };
+        try { r.stop(); } catch (err) { /* schon beendet */ }
+      };
+      mic.addEventListener('pointerdown', function (e) { e.preventDefault(); startPTT(); });
+      mic.addEventListener('pointerup', endPTT); mic.addEventListener('pointerleave', endPTT);
+      document.addEventListener('keydown', function (e) { if (e.key === 'Alt' && !e.repeat) { startPTT(); } });
+      document.addEventListener('keyup', function (e) { if (e.key === 'Alt') { endPTT(); } });
+
+      // Wake-Word „Jarvis“ (Schalter, standardmäßig AUS, Einstellung bleibt im Browser)
+      var wakeLabel = wake ? wake.parentNode : null, wakeRec = null, armed = 0, wakeOn = false;
+      if (wake && wakeLabel) {
+        wakeLabel.hidden = false;
+        wake.checked = store('local', 'jarvis-wake') === '1';
+        wake.addEventListener('change', function () {
+          store('local', 'jarvis-wake', wake.checked ? '1' : '0');
+          if (wake.checked) { startWake(); } else { stopWake(false); say(''); }
+        });
+      }
+      startWake = function () {
+        if (!wake || !wake.checked || wakeRec || ptt) { return; }
+        wakeOn = true;
+        wakeRec = new SR(); wakeRec.lang = 'de-DE'; wakeRec.continuous = true; wakeRec.interimResults = false;
+        wakeRec.onresult = function (e) {
+          if (body.classList.contains('speaking')) { return; }            // eigene Stimme nicht als Befehl werten
+          var r = e.results[e.results.length - 1]; if (!r.isFinal) { return; }
+          var t = r[0].transcript.trim(), m = t.match(/\b(jarvis|javis|charvis|dschawis)\b[,.!\s]*(.*)$/i);
+          if (m) {
+            if (m[2] && m[2].length > 2) { submitText(m[2]); return; }
+            armed = Date.now(); body.classList.add('listening'); say('Ja, Sir?');
+          } else if (armed && Date.now() - armed < 8000) { submitText(t); }
+        };
+        wakeRec.onend = function () { wakeRec = null; body.classList.remove('listening'); if (wakeOn && wake.checked) { setTimeout(startWake, 400); } };
+        wakeRec.onerror = function (e) { if (e.error === 'not-allowed') { wake.checked = false; wakeOn = false; say('Mikrofon nicht erlaubt.'); } };
+        try { wakeRec.start(); say('Ich höre auf „Jarvis“.'); body.classList.add('wake-on'); } catch (err) { wakeRec = null; }
+      };
+      stopWake = function (keepSetting) {
+        wakeOn = false; armed = 0; body.classList.remove('wake-on');
+        if (wakeRec) { var w = wakeRec; wakeRec = null; try { w.stop(); } catch (err) { /* egal */ } }
+        if (!keepSetting && wake && !wake.checked) { store('local', 'jarvis-wake', '0'); }
+      };
+      // Nach JARVIS' gesprochener Antwort wieder zuhören
+      setTimeout(startWake, 1200);
+    }
+  }
+
   var end = document.getElementById('ende');
   if (end && end.scrollIntoView && !body.classList.contains('portal-on')) { end.scrollIntoView(); }
 })();

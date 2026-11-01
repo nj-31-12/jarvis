@@ -21,6 +21,7 @@ Der aktuelle Stand steht in der Datei `STAND.txt` im JARVIS-Ordner.
 | 14 | 01.11.2026 | Startfrage „umstellen?“ kommt nur noch einmal | jarvis-aktuell | updates/ |
 | 15 | 01.11.2026 | Chat als Portal und Reportage, JARVIS-Stimme mit Effekt, Antwortprüfung mit Referenzen | jarvis-aktuell | updates/ |
 | 16 | 01.11.2026 | Poster-Startseite, Datenkugel aus Ziffern, Galaxie-Portal, Datentunnel im Second Brain | jarvis-aktuell | updates/ |
-| 17 | 01.11.2026 | Strategie-Werkstatt (11 Experten-Brillen), Wissenspaket-Import, Animationen bis zu 75 % flüssiger | jarvis-aktuell | **jarvis-nj (aktiv)** |
+| 17 | 01.11.2026 | Strategie-Werkstatt (11 Experten-Brillen), Wissenspaket-Import, Animationen bis zu 75 % flüssiger | jarvis-aktuell | updates/ |
+| 18 | 01.11.2026 | Galaxie bleibt im Chat, Push-to-talk + Wake-Word „Jarvis“, tiefere Stimme, 3 Vorbilder, Coach-Check, Daten-Wächter, Sonnet für Strategien | jarvis-aktuell | **jarvis-nj (aktiv)** |
 
 Neue Stände: Nummer +1, Eintrag hier und in `STAND.txt`.

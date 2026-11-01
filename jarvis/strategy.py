@@ -28,6 +28,20 @@ LENSES = [
 ]
 
 
+def strategy_model(cfg: dict):
+    """Stand 18: Für Strategien ein stärkeres Modell (z. B. claude-sonnet-5-5), wenn es unter ai.strategy_model
+    eingetragen UND in ai.models freigegeben ist. Sonst None = das normale Chat-Modell. Die Freigabeprüfung selbst
+    macht die Erlaubnisliste bei jedem Aufruf (wie immer)."""
+    ai = cfg.get("ai") or {}
+    name = ai.get("strategy_model") if isinstance(ai, dict) else None
+    models = ai.get("models") if isinstance(ai, dict) and isinstance(ai.get("models"), dict) else {}
+    entry = models.get(name) if isinstance(name, str) else None
+    if not isinstance(entry, dict) or entry.get("provider") != "anthropic":
+        return None
+    from .ai_providers.anthropic import PRICES_USD_PER_MTOK, AnthropicModel
+    return AnthropicModel(name) if name in PRICES_USD_PER_MTOK else None
+
+
 def system_prompt() -> str:
     parts = ["Du bist JARVIS in der Strategie-Werkstatt. Noah beschreibt eine Geschäftsidee oder Strategie. "
              "Analysiere sie wie ein Team aus erfahrenen Experten, konkret für Noahs Lage: 18 Jahre, Ausbildung zum "
@@ -62,8 +76,8 @@ def run_strategy(jarvis, idea: str) -> tuple:
     model = jarvis.llm.model
     if getattr(model, "is_test_mode", True):
         analysis = offline_template(idea)
-    else:
-        analysis = jarvis.llm.chat(system_prompt(), [], idea)          # Sicherheitskette und Kostenbremse greifen
+    else:                                                       # Sicherheitskette und Kostenbremse greifen
+        analysis = jarvis.llm.chat(system_prompt(), [], idea, model=strategy_model(jarvis.cfg), effort="medium")
     from .web_brain import PROJECTS, _area_of, _keywords      # spät importieren (Kreisbezug vermeiden)
 
     class _N:                                                 # kleine Hülle für die Bereichserkennung

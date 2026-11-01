@@ -194,6 +194,14 @@ class BrainPages:
         lesson_flash = (f'<p class="{"success" if lflash.startswith("🧠") else "error"}" role="status">'
                         f'{html.escape(lflash)}</p>') if lflash else ""
         research = [n for n in kb.recent(limit=60) if _kind(n) == "recherche"][:6]
+        from .coach import proposals as coach_proposals
+        proposal_html = li([f'<li class="proposal"><span>{html.escape(t)}</span><form method="post" action="/gehirn/lektion">'
+                            f'<input type="hidden" name="csrf" value="{csrf}"><input type="hidden" name="text" '
+                            f'value="{html.escape(t)}"><button class="ghost" type="submit">✓ übernehmen</button></form></li>'
+                            for t in coach_proposals(kb)], "Keine offenen Vorschläge. Starte einen Coach-Check.")
+        cflash = session.data.pop("coach_flash", "")
+        coach_flash = (f'<p class="{"success" if cflash.startswith("🎯") else "error"}" role="status">'
+                       f'{html.escape(cflash)}</p>') if cflash else ""
         strategies = [n for n in kb.recent(limit=80) if _kind(n) == "strategie"][:6]
         strategy_html = li([f'<li><a href="/wissen/notiz?id={html.escape(n.id)}">{html.escape(n.title)}</a></li>'
                             for n in strategies], "Noch keine Strategien.")
@@ -235,6 +243,10 @@ class BrainPages:
 <button type="submit" {'disabled' if kill else ''}>Lektion merken</button></form>
 <ul class="list">{lesson_html}</ul>
 <p class="hint">Gemerkte Lektionen beachtet JARVIS bei jeder Antwort. Entfernen: die Notiz in Obsidian löschen. Sicherheitsregeln können Lektionen nicht aufheben.</p></section>
+<section class="panel coach" id="coach"><h2>🎯 Coach – JARVIS prüft dich</h2>{coach_flash}
+<p>JARVIS schaut sich deine Ziele, Aufgaben und Strategien an und sagt dir, was du diese Woche verbessern solltest. Automatisch jeden Sonntag um 20 Uhr, wenn der Aufgabenplaner läuft.</p>
+<form method="post" action="/gehirn/coach"><input type="hidden" name="csrf" value="{csrf}"><button type="submit" {'disabled' if kill else ''}>Coach-Check jetzt</button></form>
+<h3 class="eyebrow">Lektions-Vorschläge – gelten erst nach deinem ✓</h3><ul class="list">{proposal_html}</ul></section>
 <section class="panel strategy" id="strategie"><h2>🧭 Strategie-Werkstatt</h2>{strategy_flash}
 <form class="capture" method="post" action="/gehirn/strategie"><input type="hidden" name="csrf" value="{csrf}">
 <label for="strat">Erzähl JARVIS deine Geschäftsidee oder Strategie</label>
@@ -260,6 +272,21 @@ class BrainPages:
             return "/gehirn#strategie"
         rel = path.resolve().relative_to(self.jarvis.vault.root).as_posix()
         return "/wissen/notiz?id=" + note_id_for(rel)
+
+    def _brain_coach(self, session) -> str:
+        from .coach import run_coach, save_report
+        from .knowledge import note_id_for
+        if self.jarvis.kill.is_active():
+            session.data["coach_flash"] = "🛑 Notabschaltung aktiv. Kein Coach-Check."
+            return "/gehirn#coach"
+        try:
+            _, text = run_coach(self.jarvis)
+            path = save_report(self.jarvis, text)
+        except Exception as exc:  # noqa: BLE001 – z. B. Kostenbremse: verständlich melden
+            session.data["coach_flash"] = f"⚠️ {str(exc)[:200]}"
+            return "/gehirn#coach"
+        session.data["coach_flash"] = f"🎯 Coach-Check gespeichert: {path.name}"
+        return "/wissen/notiz?id=" + note_id_for(path.resolve().relative_to(self.jarvis.vault.root).as_posix())
 
     def _brain_lesson(self, session, text: str) -> None:
         session.data["lesson_flash"] = add_lesson(self.jarvis, text)

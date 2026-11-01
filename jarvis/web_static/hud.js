@@ -314,6 +314,28 @@
     }, s);
   }
 
+  // ------------------------------------------------------------------ 4. Chat-Hintergrund (bleibt nach dem Portal)
+  function ambient() {
+    var canvas = document.createElement('canvas'); canvas.className = 'ambient'; canvas.setAttribute('aria-hidden', 'true');
+    document.body.insertBefore(canvas, document.body.firstChild);
+    var s = setup(canvas); if (!s) { return; }
+    var stars = makeStars(180, Math.max(s.w, s.h) * 0.7), lines = [];
+    for (var i = 0; i < 40; i++) { lines.push({ x: (Math.random() - 0.5) * 7, y: (Math.random() - 0.5) * 4, z: Math.random() * 14 + 1 }); }
+    animate(function (dt) {
+      var ctx = s.ctx, w = s.w, h = s.h;
+      ctx.fillStyle = 'rgba(5,11,18,0.22)'; ctx.fillRect(0, 0, w, h);                 // sanftes Nachleuchten
+      drawSwirl(s, stars, reduce ? 0 : 0.012, reduce ? 0 : 0.0015, 0.55, 0.55);
+      if (!reduce) {                                                                  // ruhiger Datenstrom
+        var f = Math.min(w, h) * 0.6; ctx.lineWidth = 1;
+        for (var k = 0; k < lines.length; k++) {
+          var L = lines[k], z0 = L.z; L.z -= dt * 1.6; if (L.z < 0.3) { L.z += 14; continue; }
+          ctx.strokeStyle = 'rgba(' + CYAN + ',' + Math.min(0.35, 0.8 / L.z).toFixed(2) + ')';
+          ctx.beginPath(); ctx.moveTo(w / 2 + L.x * f / z0, h / 2 + L.y * f / z0); ctx.lineTo(w / 2 + L.x * f / L.z, h / 2 + L.y * f / L.z); ctx.stroke();
+        }
+      }
+    }, s, 30);
+  }
+
   // ------------------------------------------------------------------ Start
   function boot() {
     Array.prototype.forEach.call(document.querySelectorAll('canvas[data-hud]'), function (c) {
@@ -324,6 +346,7 @@
       } catch (e) { c.parentNode.classList.remove('hud-on'); /* bei Fehlern bleibt die einfache Ansicht */ }
     });
     if (document.body.classList.contains('portal-on')) { try { portal(); } catch (e) { /* CSS-Portal bleibt */ } }
+    if (document.body.classList.contains('chat-doc')) { try { ambient(); } catch (e) { /* ohne Hintergrund */ } }
     // Second Brain: Ansicht Gehirn / Datentunnel
     var sw = document.querySelector('.view-switch');
     if (sw) {

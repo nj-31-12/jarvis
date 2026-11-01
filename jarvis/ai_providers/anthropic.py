@@ -35,6 +35,10 @@ PRICES_USD_PER_MTOK = {
 # Höchstzahl Ausgabe-Tokens je Aufgabe (inkl. Denkschritte des Modells). Begrenzt die Kosten pro Anfrage.
 MAX_OUTPUT_TOKENS = {"chat": 4096, "idea": 4096, "research": 6144, "briefing": 4096, "post": 2048, "skill": 2048}
 
+# Stand 18: Alltag mit „medium“ (gründlicher als „low“). Die Höchstkosten bleiben gleich, denn max_tokens begrenzt
+# Antwort UND Denkschritte. Die Antwortprüfung läuft weiter mit „low“.
+EFFORTS = ("low", "medium", "high")
+
 TASK_HINTS = {
     "idea": "Bewerte die folgende Geschäftsidee strukturiert: Bewertungsraster, Beispielrechnung, nächste kleine "
             "Tests, Risiken (Recht, Nebentätigkeit, Kosten). Trenne Fakten, Schätzungen und Ideen.",
@@ -125,10 +129,10 @@ class AnthropicModel:
 
     complete = chat
 
-    def chat_billed(self, system_prompt: str, history: list, text: str, api_key: str):
+    def chat_billed(self, system_prompt: str, history: list, text: str, api_key: str, effort: str = "medium"):
         body = {"model": self.name, "max_tokens": MAX_OUTPUT_TOKENS["chat"],
                 "system": system_prompt or "", "messages": to_messages(history, text),
-                "output_config": {"effort": "low"}}
+                "output_config": {"effort": effort if effort in EFFORTS else "medium"}}
         return self._send(body, api_key)
 
     def complete_billed(self, task: str, text: str, api_key: str):

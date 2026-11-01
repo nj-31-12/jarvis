@@ -31,9 +31,18 @@ class Effekt(unittest.TestCase):
         with wave.open(io.BytesIO(out)) as w:
             self.assertEqual((w.getnchannels(), w.getsampwidth(), w.getframerate()), (1, 2, 22050))
             data = array("h"); data.frombytes(w.readframes(w.getnframes()))
-        self.assertGreater(len(data), 22050)                      # Echo verlängert leicht
+        self.assertGreater(len(data), int(22050 / 0.84))          # tiefer = länger (+ Echo)
         self.assertLessEqual(max(abs(v) for v in data), 32767)
         self.assertGreater(max(abs(v) for v in data), 20000)       # normalisiert, nicht stumm
+
+    def test_stimme_wird_tiefer(self):
+        def freq(wav):
+            with wave.open(io.BytesIO(wav)) as w:
+                d = array("h"); d.frombytes(w.readframes(w.getnframes()))
+            d = d[2000:20000]
+            crossings = sum(1 for a, b in zip(d, d[1:]) if a < 0 <= b)
+            return crossings / (len(d) / 22050)
+        self.assertLess(freq(iron_fx(tone())), freq(tone()) * 0.9)     # 200 Hz → ca. 168 Hz
 
     def test_effekt_lehnt_8_bit_ab(self):
         b = io.BytesIO()
@@ -80,7 +89,7 @@ class ZweiterDurchgang(JarvisBase):
         svc = ChatService(self.jarvis, ChatStore(self.tmp / "c.db"))
         calls = []
 
-        def fake_chat(system, history, text):
+        def fake_chat(system, history, text, **_kw):
             calls.append(system)
             if system.startswith("Du bist die Prüfinstanz"):
                 self.assertIn("PRUEF-", text)                       # Daten gerahmt
@@ -103,7 +112,7 @@ class ZweiterDurchgang(JarvisBase):
         svc = ChatService(self.jarvis, ChatStore(self.tmp / "c2.db"))
         seq = iter(["Antwort steht.", RuntimeError("weg")])
 
-        def fake_chat(*_a):
+        def fake_chat(*_a, **_kw):
             v = next(seq)
             if isinstance(v, Exception):
                 raise v

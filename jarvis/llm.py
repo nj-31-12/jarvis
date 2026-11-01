@@ -166,8 +166,8 @@ class LLMRouter:
             raise ExternalAIBlocked("Keine Datenschutz-Schranke konfiguriert. Es wurden keine Daten gesendet.")
         return self.guard
 
-    def _admit(self, task: str, chars: int):
-        model = self.model                     # einmal lesen: Prüfung und Aufruf betreffen dasselbe Objekt
+    def _admit(self, task: str, chars: int, model=None):
+        model = model or self.model            # einmal lesen: Prüfung und Aufruf betreffen dasselbe Objekt
         self.kill.check()
         decision = self.policy.authorize(model, task, chars)
         return model, decision
@@ -219,16 +219,20 @@ class LLMRouter:
         self._charge(model, decision)
         return model.complete(task, text)
 
-    def chat(self, system_prompt: str, history: list, text: str) -> str:
-        """Chat-Antwort. Notaus, Erlaubnisliste, Datenschutz-Schranke und Kostenbremse VOR dem Modellaufruf."""
+    def chat(self, system_prompt: str, history: list, text: str, model=None, effort: str = "") -> str:
+        """Chat-Antwort. Notaus, Erlaubnisliste, Datenschutz-Schranke und Kostenbremse VOR dem Modellaufruf.
+
+        Stand 18: `model` erlaubt ein anderes, ebenfalls freigegebenes Modell (z. B. Sonnet für Strategien) – es
+        durchläuft dieselbe Prüfkette. `effort` steuert die Denktiefe (low/medium/high), sofern das Modell das kann."""
         self._local.cost = 0.0
         chars = len(system_prompt or "") + len(text or "") + sum(len(str(m.get("text", ""))) for m in history)
-        model, decision = self._admit("chat", chars)
+        model, decision = self._admit("chat", chars, model)
         if decision.kind != "test":
             system_prompt, history, text = self._guard().prepare(system_prompt, history, text)
             if hasattr(model, "chat_billed"):
                 size = len(system_prompt) + len(text) + sum(len(m["text"]) for m in history) + 200
+                extra = {"effort": effort} if effort else {}
                 return self._billed(model, decision, "chat", size,
-                                    lambda key: model.chat_billed(system_prompt, history, text, key))
+                                    lambda key: model.chat_billed(system_prompt, history, text, key, **extra))
         self._charge(model, decision)
         return model.chat(system_prompt, history, text)

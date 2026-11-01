@@ -528,7 +528,8 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
             if not session:
                 return redirect("/login")
             return self._home(session)
-        if path in ("/gehirn", "/gehirn/notiz", "/gehirn/lektion", "/gehirn/daten", "/gehirn/strategie"):
+        if path in ("/gehirn", "/gehirn/notiz", "/gehirn/lektion", "/gehirn/daten", "/gehirn/strategie",
+                    "/gehirn/coach"):
             if not session:
                 return redirect("/login")
             if self.jarvis is None:
@@ -541,6 +542,10 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
                 from .web_brain import brain_data
                 return Response(200, json.dumps(brain_data(self.jarvis.kb), ensure_ascii=False),
                                 "application/json; charset=utf-8")
+            if path == "/gehirn/coach" and method == "POST":
+                if not wa.check_csrf(session, field("csrf")):
+                    return Response(403, "Ungültiges Prüfzeichen.", "text/plain; charset=utf-8")
+                return redirect(self._brain_coach(session))
             if path == "/gehirn/strategie" and method == "POST":
                 if not wa.check_csrf(session, field("csrf")):
                     return Response(403, "Ungültiges Prüfzeichen.", "text/plain; charset=utf-8")
@@ -1088,6 +1093,8 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages):
 <input type="hidden" name="csrf" value="{csrf}"><input type="hidden" name="g" value="{conv}">
 <label for="text">Deine Nachricht</label>
 <textarea id="text" name="text" rows="3" maxlength="{MAX_MESSAGE_CHARS}" required autofocus placeholder="Frag JARVIS etwas … oder /hilfe">{html.escape(draft)}</textarea>
+<div class="voice-ctl" hidden><button type="button" class="mic ghost" id="mic" aria-pressed="false">🎙 Halten zum Sprechen</button>
+<label class="wake" hidden><input type="checkbox" id="wake"> Auf „Jarvis“ hören</label><span class="vc-hint" id="vchint" aria-live="polite"></span></div>
 <button type="submit">Senden</button>
 </form></section>
 <aside class="panel convs" aria-label="Letzte Gespräche"><h2>Letzte Gespräche</h2><ul class="list">{side}</ul></aside>

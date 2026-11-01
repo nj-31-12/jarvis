@@ -132,6 +132,11 @@ def _recurring(j) -> tuple:
     return "Wiederkehrende Aufgaben", "\n".join(lines)
 
 
+def _coach(j) -> tuple:
+    from .coach import run_coach
+    return run_coach(j)          # Bericht mit Verbesserungen; Lektionen nur als Vorschlag (Noah bestätigt)
+
+
 ALL_DAYS, WORKDAYS = tuple(range(7)), tuple(range(5))
 TASKS = {t.id: t for t in [
     Task("briefing", "Morgendliches Tagesbriefing", "Termine, E-Mails, Ziele, Freigaben", "07:00", ALL_DAYS, _briefing),
@@ -143,6 +148,8 @@ TASKS = {t.id: t for t in [
     Task("ideen", "Geschäftsideen analysieren", "Neueste Idee aus der Inbox bewerten", "10:00", (5,), _business_ideas),
     Task("muster", "Wiederkehrende Aufgaben erkennen", "Häufige Befehle zählen, Vorschläge machen", "11:00", (6,),
          _recurring),
+    Task("coach", "Coach-Check", "Ziele, Aufgaben und Strategien prüfen, Verbesserungen und Lektionen vorschlagen",
+         "20:00", (6,), _coach),
 ]}
 
 

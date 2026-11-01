@@ -410,8 +410,18 @@ class ChatService:
         context = [] if self.jarvis.kill.is_active() else self.jarvis.kb.context_for(text, k=CONTEXT_NOTES)
         # Prüfmerkmale des GESAMTEN Auszugs, den das Modell sieht (seine Antwort kann daraus zitieren)
         sources = [{"id": c["id"], "title": c["title"], "fp": quote_fingerprints(c["excerpt"])} for c in context]
+        from .data_guard import banner as guard_banner, check as guard_check
+        guard = guard_check(text)                  # Stand 18: fordert die Nachricht sensible Daten an?
+        system = self._prompt_with_knowledge(context)
+        if guard["level"]:
+            self.jarvis.audit.write("data_request_flagged", level=guard["level"], signals=guard["signals"])
+            system += ("\n\n## Sicherheitshinweis zu dieser Nachricht\nDie Nachricht zeigt Merkmale einer Anfrage nach "
+                       "sensiblen Daten (" + ", ".join(guard["signals"]) + "). Prüfe sie kritisch, nenne konkret die "
+                       "Warnzeichen, rate davon ab, Daten oder Codes herauszugeben oder Links zu öffnen, und schlage einen "
+                       "sicheren Weg vor (offizielle App/Website, Rückruf über bekannte Nummer). Frag Noah, bevor irgendetwas "
+                       "weitergegeben wird.\n")
         try:
-            reply = self.jarvis.llm.chat(self._prompt_with_knowledge(context), history, text)
+            reply = self.jarvis.llm.chat(system, history, text)
         except KillSwitchActive:
             return ROLE_SYSTEM, "🛑 Notabschaltung aktiv. JARVIS antwortet erst wieder nach `python3 -m jarvis resume`.", "gesperrt", 0.0
         except BudgetExceeded as exc:
@@ -426,6 +436,7 @@ class ChatService:
             return ROLE_SYSTEM, "Die KI ist gerade nicht erreichbar. Deine Nachricht ist gespeichert.", "fehler", 0.0
         mode = "test" if getattr(model, "is_test_mode", True) else model.name
         cost = self.jarvis.llm.last_cost_eur()
+        reply = guard_banner(guard) + reply
         if hasattr(model, "chat_billed"):          # Version 5.3: echte KI → Antwort zweiter Durchgang prüfen
             footer, extra = self._verify(text, reply, context)
             reply, cost = reply.rstrip() + "\n\n" + footer, cost + extra
@@ -448,7 +459,7 @@ class ChatService:
         parts += [f"- {self._neutralize(c['title'])}: {self._neutralize(c['excerpt'][:600])}" for c in context] or ["(keine)"]
         parts.append(f"PRUEF-{mark}>>>")
         try:
-            raw = self.jarvis.llm.chat(system, [], "\n".join(parts))
+            raw = self.jarvis.llm.chat(system, [], "\n".join(parts), effort="low")
             extra = self.jarvis.llm.last_cost_eur()
         except Exception as exc:  # noqa: BLE001 – die Antwort bleibt, nur die Prüfung fehlt
             self.jarvis.audit.write("answer_check_failed", error=type(exc).__name__)

@@ -428,3 +428,21 @@ color:var(--accent);font-family:var(--mono);box-shadow:0 0 14px rgba(79,227,255,
 /* Stand 17: Leistung – Ebenen für Dauer-Animationen, Pause im Hintergrund-Tab */
 body::after,.orb-ring,.globe .g-ring,.globe .g-orbit,.p-ring,.p-rays{will-change:transform}
 .hud-canvas,.brain3d canvas,.brain-tunnel canvas,.portal-canvas{contain:strict}
+.proposal{display:flex!important;flex-direction:row!important;justify-content:space-between;align-items:center;gap:10px}
+.proposal form{margin:0}.proposal button{margin:0;padding:4px 10px;font-size:.8rem}
+.coach h3{margin:14px 0 6px}
+/* Stand 18: Chat-Hintergrund (Galaxie bleibt), Sprechen */
+.ambient{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;pointer-events:none;opacity:.75;contain:strict}
+.chat-doc .nav,.chat-doc .wrap{position:relative;z-index:1}
+.chat-doc .chat .msg,.chat-doc .convs,.chat-doc .composer textarea{backdrop-filter:none}
+.voice-ctl{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.voice-ctl[hidden]{display:none}
+.voice-ctl .mic{margin:0;padding:8px 14px;touch-action:none;user-select:none}
+.voice-ctl .mic[aria-pressed="true"]{background:rgba(255,159,67,.25);color:var(--fg);border-color:var(--accent2);box-shadow:0 0 16px rgba(255,159,67,.5)}
+.voice-ctl .wake{display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--muted)}
+.voice-ctl .wake[hidden]{display:none}
+.voice-ctl .wake input{width:auto}
+.vc-hint{font-size:.8rem;color:var(--accent);font-family:var(--mono)}
+body.listening .voicebar{opacity:1}
+body.listening .voicebar i{background:var(--accent2);animation:bar .7s ease-in-out infinite}
+body.wake-on .hud-mini .globe .g-sphere{stroke:var(--accent2)}

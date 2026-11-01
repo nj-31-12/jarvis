@@ -71,7 +71,7 @@ class Base(unittest.TestCase):
 
 class Catalog(Base):
     def test_e1_all_example_tasks_run_in_test_mode_without_side_effects(self):
-        self.assertEqual(set(TASKS), {"briefing", "offene_aufgaben", "projekte", "lernen", "ideen", "muster"})
+        self.assertEqual(set(TASKS), {"briefing", "offene_aufgaben", "projekte", "lernen", "ideen", "muster", "coach"})
         vault = Path(self.cfg["vault_dir"])
         before = sorted(p.relative_to(vault).as_posix() for p in vault.rglob("*.md"))
         s = self.scheduler()

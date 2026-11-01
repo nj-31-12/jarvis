@@ -49,6 +49,14 @@ class Strategie(JarvisBase):
         self.assertIn("Strategie-Werkstatt", chat.call_args[0][0])
         self.assertIn("Restaurants …", path.read_text(encoding="utf-8"))
 
+    def test_sonnet_nur_wenn_eingetragen(self):
+        from jarvis.strategy import strategy_model
+        self.assertIsNone(strategy_model({}))
+        self.assertIsNone(strategy_model({"ai": {"strategy_model": "claude-sonnet-5-5", "models": {}}}))
+        m = strategy_model({"ai": {"strategy_model": "claude-sonnet-5-5",
+                                   "models": {"claude-sonnet-5-5": {"provider": "anthropic"}}}})
+        self.assertEqual(m.name, "claude-sonnet-5-5")
+
     def test_zu_kurz_notaus_und_bankdaten(self):
         self.assertIsNone(run_strategy(self.jarvis, "kurz")[1])
         self.assertIsNone(run_strategy(self.jarvis, IDEE + " IBAN DE89 3704 0044 0532 0130 00")[1])

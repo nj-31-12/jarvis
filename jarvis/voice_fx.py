@@ -2,9 +2,11 @@
 
 Ablauf: Text → speakable/narrate_markup (Erzähler-Pausen) → `say` schreibt eine WAV-Datei → Effektkette → WAV.
 Effektkette (eigener Klang, keine Kopie einer Filmstimme):
-  1. Hochpass (~180 Hz) und sanfter Tiefpass (~6 kHz): klar, leicht „technisch“
+  0. Stand 18: ca. 3 Halbtöne tiefer und ruhiger (die Mac-Stimme spricht dafür schneller, das Absenken
+     verlangsamt sie wieder auf ein entspanntes Tempo von ca. 135 Wörtern pro Minute)
+  1. Hochpass (~120 Hz) und sanfter Tiefpass (~5,5 kHz): warm, klar, leicht „technisch“
   2. Verdopplung mit 11 ms Versatz: voller, leicht metallischer Klang
-  3. leichte Ringmodulation (38 Hz, 12 %): dezentes Funk-/Helm-Timbre
+  3. leichte Ringmodulation (38 Hz, 8 %): dezentes Funk-/Helm-Timbre
   4. kurzes Echo (85 ms, 18 %): Raum wie in einer Werkstatt-Halle
   5. Pegel normalisieren
 Sicherheit: `say` wird mit Argumentliste aufgerufen (keine Shell), Text ist begrenzt, Zeitlimit, nur Temp-Ordner.
@@ -22,13 +24,16 @@ import subprocess
 import sys
 import tempfile
 import wave
+from dataclasses import replace
 from pathlib import Path
 
 from .speech import NARRATOR, _mac_voices, narrate_markup
 
 MAX_TEXT_CHARS = 2500
 CACHE_FILES = 40
-FX_VERSION = "1"
+FX_VERSION = "2"
+PITCH = 0.84                 # < 1 = tiefer (0.84 ≈ 3 Halbtöne)
+SPEAK_WPM = 160              # so schnell spricht die Mac-Stimme vor dem Absenken
 
 
 class VoiceUnavailable(RuntimeError):
@@ -45,7 +50,7 @@ def _clip(v: float) -> int:
     return -32768 if v < -32768 else 32767 if v > 32767 else int(v)
 
 
-def iron_fx(wav_bytes: bytes) -> bytes:
+def iron_fx(wav_bytes: bytes, pitch: float = PITCH) -> bytes:
     """Wendet die Effektkette auf eine 16-Bit-Mono-WAV an und gibt eine neue WAV zurück."""
     with wave.open(io.BytesIO(wav_bytes), "rb") as w:
         rate, ch, width, n = w.getframerate(), w.getnchannels(), w.getsampwidth(), w.getnframes()
@@ -59,9 +64,21 @@ def iron_fx(wav_bytes: bytes) -> bytes:
     if ch == 2:                                           # Stereo → Mono
         src = array.array("h", ((src[i] + src[i + 1]) // 2 for i in range(0, len(src) - 1, 2)))
     x = [float(s) for s in src]
+    # 0. Tiefer und ruhiger: neu abtasten (lineare Interpolation)
+    if pitch and 0.5 < pitch < 1.0 and len(x) > 1:
+        n_out = int((len(x) - 1) / pitch)
+        last = len(x) - 1
+        res0 = [0.0] * n_out
+        for i in range(n_out):
+            pos = i * pitch
+            k = int(pos)
+            frac = pos - k
+            nxt = x[k + 1] if k < last else x[k]
+            res0[i] = x[k] + (nxt - x[k]) * frac
+        x = res0
     # 1. Hochpass + Tiefpass (einpolig)
-    hp_a = math.exp(-2 * math.pi * 180 / rate)
-    lp_a = math.exp(-2 * math.pi * 6000 / rate)
+    hp_a = math.exp(-2 * math.pi * 120 / rate)
+    lp_a = math.exp(-2 * math.pi * 5500 / rate)
     y, prev_x, prev_hp, prev_lp = [0.0] * len(x), 0.0, 0.0, 0.0
     for i, v in enumerate(x):
         hp = hp_a * (prev_hp + v - prev_x)
@@ -75,7 +92,7 @@ def iron_fx(wav_bytes: bytes) -> bytes:
     for i, v in enumerate(y):
         dbl = y[i - d1] if i >= d1 else 0.0
         mixed = v + 0.45 * dbl
-        mixed = mixed * (0.88 + 0.12 * math.sin(w_ring * i))
+        mixed = mixed * (0.92 + 0.08 * math.sin(w_ring * i))
         out[i] += mixed
         out[i + d2] += 0.18 * mixed
     # 5. Normalisieren auf ~90 %
@@ -93,7 +110,7 @@ def iron_fx(wav_bytes: bytes) -> bytes:
     return buf.getvalue()
 
 
-def _say_to_wav(text: str, voice: str | None) -> bytes:
+def _say_to_wav(text: str, voice: str | None, effect: bool = True) -> bytes:
     if not shutil.which("say"):
         raise VoiceUnavailable("Die Mac-Stimme (say) ist hier nicht verfügbar.")
     fd, tmp = tempfile.mkstemp(suffix=".wav", dir=str(cache_dir()))
@@ -102,7 +119,8 @@ def _say_to_wav(text: str, voice: str | None) -> bytes:
         cmd = ["say", "--file-format=WAVE", "--data-format=LEI16@22050", "-o", tmp]
         if voice:
             cmd += ["-v", voice]
-        cmd.append(narrate_markup(text, NARRATOR))
+        profile = replace(NARRATOR, words_per_minute=SPEAK_WPM if effect else NARRATOR.words_per_minute)
+        cmd.append(narrate_markup(text, profile))
         subprocess.run(cmd, timeout=120, check=True, capture_output=True)   # Liste, keine Shell
         return Path(tmp).read_bytes()
     except (subprocess.SubprocessError, OSError) as exc:
@@ -124,7 +142,7 @@ def jarvis_voice(text: str, effect: bool = True) -> bytes:
     if path.exists():
         return path.read_bytes()
     voice = next((v for v in NARRATOR.mac_voices if v in _mac_voices()), None)
-    audio = _say_to_wav(text, voice)
+    audio = _say_to_wav(text, voice, effect)
     if effect:
         audio = iron_fx(audio)
     path.write_bytes(audio)
