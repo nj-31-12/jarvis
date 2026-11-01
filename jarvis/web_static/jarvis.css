@@ -582,3 +582,6 @@ filter:drop-shadow(0 0 24px rgba(168,85,247,.55))}
 /* Stand 20: Hintergrund-Leuchten nicht kacheln (alte Rasterregel hatte drei Größen) */
 body.theme-glass{background-size:100% 100%,100% 100%;background-repeat:no-repeat;background-attachment:fixed}
 body.theme-red{background-size:100% 100%,40px 40px,40px 40px;background-repeat:no-repeat,repeat,repeat}
+.voicefx{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--muted);margin-left:12px}
+.voicefx[hidden]{display:none}
+.voicefx select{font:inherit;font-size:.8rem;padding:4px 8px;border-radius:8px;background:rgba(20,6,8,.8);color:var(--fg);border:1px solid var(--line)}

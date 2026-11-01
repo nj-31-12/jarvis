@@ -30,6 +30,15 @@ fi
 STAND=$(head -1 "$QUELLE/STAND.txt" 2>/dev/null | tr -cd 'A-Za-z0-9._-')
 [ -z "$STAND" ] && STAND="ohne-Nummer_$(date +%Y-%m-%d_%H-%M)"
 ALT=$(head -1 "$ZIEL/STAND.txt" 2>/dev/null | tr -cd 'A-Za-z0-9._-')
+# Stand 21: Sperre gegen Rückschritte (z. B. wenn noch ein alter Download in Downloads lag)
+NEU_NR=$(echo "$STAND" | sed 's/_.*//' | tr -cd '0-9')
+ALT_NR=$(echo "$ALT" | sed 's/_.*//' | tr -cd '0-9')
+if [ -n "$NEU_NR" ] && [ -n "$ALT_NR" ] && [ "$NEU_NR" -lt "$ALT_NR" ] && [ "$JARVIS_RUECKSCHRITT" != "ja" ]; then
+  echo "Abbruch: Die ZIP enthält Stand $NEU_NR, installiert ist schon Stand $ALT_NR (neuer). Nichts geändert."
+  echo "Vermutlich ein alter Download. Bitte neu herunterladen: https://github.com/nj-31-12/jarvis/archive/refs/heads/aktuell.zip"
+  mkdir -p "$UPDATES/alt" && mv "$ZIP" "$UPDATES/alt/" 2>/dev/null
+  rm -rf "$TMP"; exit 1
+fi
 NAME="JARVIS_${STAND}.zip"
 [ -e "$UPDATES/$NAME" ] && NAME="JARVIS_${STAND}_erneut-$(date +%H-%M).zip"
 mv "$ZIP" "$UPDATES/$NAME" || { rm -rf "$TMP"; exit 1; }

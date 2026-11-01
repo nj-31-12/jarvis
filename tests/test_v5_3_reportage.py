@@ -44,6 +44,23 @@ class Effekt(unittest.TestCase):
             return crossings / (len(d) / 22050)
         self.assertLess(freq(iron_fx(tone())), freq(tone()) * 0.9)     # 200 Hz → ca. 168 Hz
 
+    def test_filmmodus_ist_am_tiefsten(self):
+        from jarvis.voice_fx import PRESETS
+
+        def freq(wav):
+            with wave.open(io.BytesIO(wav)) as w:
+                d = array("h"); d.frombytes(w.readframes(w.getnframes()))
+            d = d[2000:20000]
+            return sum(1 for a, b in zip(d, d[1:]) if a < 0 <= b) / (len(d) / 22050)
+        f = {p: freq(iron_fx(tone(), PRESETS[p]["pitch"], p)) for p in PRESETS}
+        self.assertLess(f["film"], f["jarvis"])
+        self.assertLess(f["jarvis"], f["natuerlich"])
+        self.assertLess(f["natuerlich"], freq(tone()))
+
+    def test_unbekannter_modus_nimmt_film(self):
+        out = iron_fx(tone(), 0.84, "gibtsnicht")
+        self.assertTrue(out.startswith(b"RIFF"))
+
     def test_effekt_lehnt_8_bit_ab(self):
         b = io.BytesIO()
         with wave.open(b, "wb") as w:
@@ -183,8 +200,9 @@ class WebReportage(JarvisBase):
     def test_stimme_liefert_wav_oder_hinweis(self):
         self.send("Hallo")
         jid = [m for m in self.app.chat.store.history(self.app.chat.store.latest()) if m["role"] == "jarvis"][0]["id"]
-        with mock.patch("jarvis.voice_fx.jarvis_voice", return_value=b"RIFFtest"):
-            r = self.req("GET", f"/chat/stimme?id={jid}", cookie=self.sid)
+        with mock.patch("jarvis.voice_fx.jarvis_voice", return_value=b"RIFFtest") as jv:
+            r = self.req("GET", f"/chat/stimme?id={jid}&fx=natuerlich", cookie=self.sid)
+        self.assertEqual(jv.call_args.kwargs["preset"], "natuerlich")
         self.assertEqual((r.status, r.header("Content-Type")), (200, "audio/wav"))
         with mock.patch("jarvis.voice_fx.jarvis_voice", side_effect=VoiceUnavailable("kein Mac")):
             self.assertEqual(self.req("GET", f"/chat/stimme?id={jid}", cookie=self.sid).status, 501)

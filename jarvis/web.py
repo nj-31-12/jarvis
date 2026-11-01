@@ -608,7 +608,7 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages):
             if not session:
                 return redirect("/login")
             query = parse_qs(urlsplit(target).query, max_num_fields=3)
-            return self._chat_voice((query.get("id") or [""])[0])
+            return self._chat_voice((query.get("id") or [""])[0], (query.get("fx") or [""])[0])
         if path in ("/chat", "/chat/neu", "/chat/schwaerzen"):
             if not session:
                 return redirect("/login")
@@ -1013,7 +1013,7 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages):
             session.data["flash_ok"] = "Antwort endgültig geschwärzt."
         return redirect(target)
 
-    def _chat_voice(self, msg_id: str) -> Response:
+    def _chat_voice(self, msg_id: str, fx: str = "") -> Response:
         """Version 5.3: JARVIS-Antwort als Sprache (Mac-Stimme + Effekt, lokal). Nur eigene, sichtbare Antworten."""
         from .chat import strip_check
         from .speech import speakable
@@ -1026,7 +1026,7 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages):
         if not m or m["role"] != ROLE_JARVIS or self.chat.withheld_reason(m) is not None:
             return Response(404, "Nicht gefunden.", "text/plain; charset=utf-8")
         try:
-            audio = jarvis_voice(speakable(strip_check(m["text"]), max_chars=2500))
+            audio = jarvis_voice(speakable(strip_check(m["text"]), max_chars=2500), preset=fx or "film")
         except VoiceUnavailable as exc:
             return Response(501, str(exc), "text/plain; charset=utf-8")
         self.audit.write("voice_spoken", msg=int(msg_id), bytes=len(audio))
@@ -1102,6 +1102,7 @@ class WebApp(ApprovalPages, SkillPages, TaskPages, BrainPages, TeamPages):
         inner = f"""<header class="top hud-chat"><div class="hud-mini">{hud_globe("globe mini", "JARVIS aktiv")}</div><div class="hud-title"><p class="eyebrow"><span class="live"></span>JARVIS · Live</p><h1>Frag JARVIS</h1>
 <div class="voicebar" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
 <label class="autovoice" hidden><input type="checkbox" id="autovoice"> Antworten automatisch sprechen</label>
+<label class="voicefx" hidden>Stimme <select id="voicefx"><option value="film">🎬 Film</option><option value="jarvis">JARVIS</option><option value="natuerlich">Natürlich</option></select></label>
 <form method="post" action="/chat/neu"><input type="hidden" name="csrf" value="{csrf}"><button class="ghost" type="submit">Neues Gespräch</button></form></header>
 {banner}
 <div class="chat-layout">

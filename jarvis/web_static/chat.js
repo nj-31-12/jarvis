@@ -29,7 +29,8 @@
   function browserVoice(text) {
     if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) { return; }
     var u = new SpeechSynthesisUtterance(text);
-    u.lang = 'de-DE'; u.rate = 0.95; u.pitch = 0.7;
+    var fxB = document.getElementById('voicefx');
+    u.lang = 'de-DE'; u.rate = fxB && fxB.value === 'natuerlich' ? 1.0 : 0.9; u.pitch = fxB && fxB.value === 'natuerlich' ? 0.9 : 0.45;
     var voices = window.speechSynthesis.getVoices();
     var pick = null;
     ['Markus', 'Yannick', 'Viktor'].forEach(function (n) {
@@ -55,7 +56,8 @@
   function speak(id, btn) {
     stop();
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Stimme lädt …'; }
-    var audio = new Audio('/chat/stimme?id=' + encodeURIComponent(id));
+    var fxSel = document.getElementById('voicefx'), fx = fxSel ? fxSel.value : 'film';
+    var audio = new Audio('/chat/stimme?id=' + encodeURIComponent(id) + '&fx=' + encodeURIComponent(fx));
     current = audio;
     audio.onplaying = function () { body.classList.add('speaking'); if (btn) { btn.disabled = false; btn.textContent = '⏹ Stopp'; } };
     audio.onended = function () { body.classList.remove('speaking'); if (btn) { btn.textContent = '🔊 Vorlesen'; } current = null; };
@@ -74,6 +76,15 @@
       speak(btn.getAttribute('data-id'), btn);
     });
   });
+
+  // Stimm-Modus (Film / JARVIS / Natürlich), bleibt im Browser gespeichert
+  var fxSelect = document.getElementById('voicefx');
+  if (fxSelect) {
+    fxSelect.parentNode.hidden = false;
+    var savedFx = store('local', 'jarvis-voicefx');
+    if (savedFx && fxSelect.querySelector('option[value="' + savedFx + '"]')) { fxSelect.value = savedFx; }
+    fxSelect.addEventListener('change', function () { store('local', 'jarvis-voicefx', fxSelect.value); });
+  }
 
   // Automatisch vorlesen (Einstellung bleibt im Browser gespeichert)
   if (auto && autoLabel) {
