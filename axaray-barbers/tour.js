@@ -117,20 +117,20 @@
   // „Rundgang abspielen“: scrollt automatisch durch alle Stationen
   const playBtn = document.getElementById("tourPlay");
   let film = null;
-  const stopFilm = () => { if (!film) return; cancelAnimationFrame(film.raf); film = null; playBtn.classList.remove("playing"); playBtn.querySelector("span").textContent = "Rundgang abspielen"; };
+  const stopFilm = () => { if (!film) return; cancelAnimationFrame(film.raf); film = null; document.documentElement.style.scrollBehavior = ""; playBtn.classList.remove("playing"); playBtn.querySelector("span").textContent = "Rundgang abspielen"; };
   document.addEventListener("click", (e) => {
     if (!e.target.closest("[data-tour-play]")) return;
     if (film) return stopFilm();
     let from = (scrollY - sec.offsetTop) / range();
-    if (from < 0 || from > .97) { from = 0; scrollTo({ top: sec.offsetTop, behavior: "instant" }); }
+    if (from < 0 || from > .97) { from = 0; scrollTo(0, sec.offsetTop); }
     const dur = 4200 * (K - 1) * (1 - from), t0 = performance.now();
-    film = {}; playBtn.classList.add("playing"); playBtn.querySelector("span").textContent = "Pause";
+    film = {}; document.documentElement.style.scrollBehavior = "auto"; playBtn.classList.add("playing"); playBtn.querySelector("span").textContent = "Pause";
     (function step(now) {
       if (!film) return;
       const k = Math.min(1, (now - t0) / dur), p = from + (1 - from) * k;
       // an jeder Station kurz stehen bleiben
       const f = p * (K - 1), i = Math.floor(f), t = f - i, hold = Math.min(1, Math.max(0, (t - .35) / .65));
-      scrollTo({ top: sec.offsetTop + ((i + hold * hold * (3 - 2 * hold)) / (K - 1)) * range(), behavior: "instant" });
+      scrollTo(0, sec.offsetTop + ((i + hold * hold * (3 - 2 * hold)) / (K - 1)) * range());
       if (k < 1) film.raf = requestAnimationFrame(step); else stopFilm();
     })(t0);
   });
