@@ -411,8 +411,6 @@ section { padding: 80px 16px; position: relative; }
   animation: grain 1s steps(6) infinite; }
 @keyframes grain { 0% { transform: translate(0, 0); } 33% { transform: translate(-3%, 2%); } 66% { transform: translate(2%, -3%); } 100% { transform: translate(0, 0); } }
 .tour-top, .tour-caption, .tour-dots, .tour-map, .tour-play, .tour-progress { z-index: 2; }
-.tour-map { position: absolute; top: calc(9vh + 44px); left: 12px; width: 72px; height: 114px; border-radius: 8px; border: 1px solid rgba(212,175,55,.4); }
-@media (min-width: 900px) { .tour-map { width: 96px; height: 152px; left: 24px; } }
 .tour-play { position: absolute; top: calc(9vh + 44px); right: 12px; display: flex; align-items: center; gap: 8px; padding: 9px 14px 9px 10px; border-radius: 999px;
   border: 1px solid rgba(212,175,55,.6); background: rgba(0,0,0,.6); color: var(--text); font-size: .82rem; font-weight: 600; backdrop-filter: blur(6px); }
 .tour-play i { width: 22px; height: 22px; border-radius: 50%; background: var(--gold); position: relative; }
@@ -422,10 +420,6 @@ section { padding: 80px 16px; position: relative; }
 .tour-dots button { width: 8px; height: 8px; }
 .tour-caption { bottom: calc(6% + 14px); }
 
-.film-card { max-width: min(960px, 96vw); padding: 0; background: #000; overflow: hidden; }
-.film-modal.tall .film-card { max-width: min(420px, 96vw); }
-.film-card video { width: 100%; display: block; max-height: 86svh; background: #000; }
-.film-card .modal-close { z-index: 2; color: #fff; text-shadow: 0 1px 4px #000; }
 
 /* ---------- Kundenkonto: Swipe-Vorteile ---------- */
 .perks { display: grid; gap: 8px; }

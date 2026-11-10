@@ -32,7 +32,7 @@
 <body>
 
 <div class="draft-bar" id="draftBar" hidden>
-  Entwurf – Preise, Barber-Namen und Bewertungstexte sind Platzhalter. Online-Zahlung läuft im Demo-Modus.
+  Vorschau für Axaray Barbers – Barber-Namen, Preise und Bewertungstexte trägt der Salon noch ein. Zahlung im Demo-Modus.
 </div>
 
 <header class="nav" id="nav">
@@ -63,7 +63,7 @@
       <div class="status" id="openStatus"><span class="dot"></span><span class="txt">…</span></div>
       <div class="hero-cta">
         <a href="#termin" class="btn btn-gold">Termin buchen & bezahlen</a>
-        <button type="button" class="btn btn-ghost" data-film>▶ Film ansehen</button>
+        <button type="button" class="btn btn-ghost" data-tour-play>▶ Rundgang ansehen</button>
       </div>
       <p class="walkin">🚗 Nur ca. 10 Min. von Aschaffenburg · ✂ Ohne Termin willkommen</p>
     </div>
@@ -77,11 +77,10 @@
       <div class="film-bars" aria-hidden="true"></div>
       <div class="film-grain" aria-hidden="true"></div>
       <div class="tour-top">
-        <p class="eyebrow">Der Salon als Film</p>
+        <p class="eyebrow">Virtueller Rundgang</p>
         <p class="tour-hint" id="tourHint">Scrollen oder Film abspielen ↓</p>
       </div>
-      <canvas class="tour-map" id="tourMap" width="96" height="152" aria-label="Grundriss mit deiner Position"></canvas>
-      <button type="button" class="tour-play" id="tourPlay"><i aria-hidden="true"></i><span>Film abspielen</span></button>
+      <button type="button" class="tour-play" id="tourPlay" data-tour-play><i aria-hidden="true"></i><span>Rundgang abspielen</span></button>
       <div class="tour-caption" id="tourCaption" aria-live="polite">
         <span class="tour-num" id="tourNum">01</span>
         <h3 id="tourTitle">Willkommen</h3>
@@ -318,15 +317,6 @@
     <div id="accountBody"></div>
   </div>
 </div>
-
-<!--VIDEO-->
-<div class="modal film-modal" id="filmModal" hidden>
-  <div class="modal-card film-card" role="dialog" aria-modal="true" aria-label="Film: Rundgang durch Axaray Barbers">
-    <button class="modal-close" data-close aria-label="Schließen">×</button>
-    <video id="filmVideo" controls playsinline preload="none"></video>
-  </div>
-</div>
-<!--/VIDEO-->
 
 <!-- ZAHLUNG -->
 <div class="modal" id="payModal" hidden>

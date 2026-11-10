@@ -82,7 +82,9 @@ window.CONFIG = {
 
   // Stationen des Rundgangs (Reihenfolge = Laufweg). Die letzten 3 = die Plätze der Barber.
   tour: [
-    { img: "img/schaufenster.jpg", title: "Hauptstraße 118", text: "Das Schaufenster mit der Waben-Lichtdecke – schon von der Straße zu sehen. Parkplätze direkt gegenüber." },
+    { img: "img/aussen.jpg",       title: "Hauptstraße 118", text: "Achte auf die Barber-Shop-Flagge und die drehende Barber-Pole – direkt an der Hauptstraße in Hösbach." },
+    { img: "img/eingang.jpg",      title: "Reinkommen", text: "Vorne links geht’s rein. Links die Plätze, rechts am Fenster die Lounge, hinten Waschplatz und Kasse." },
+    { img: "img/schaufenster.jpg", title: "Das Schaufenster", text: "Das Schaufenster mit der Waben-Lichtdecke – schon von der Straße zu sehen. Parkplätze direkt gegenüber." },
     { img: "img/empfang.jpg",      title: "Empfang & Lounge", text: "Kurz Platz nehmen auf dem Chesterfield, Kaffee aus der Maschine. Ohne Termin? Hier wartest du gemütlich." },
     { img: "img/produkte.jpg",     title: "Profi-Produkte",   text: "Wachs, Powder, Barber-Cologne – alles, was wir benutzen, kannst du auch für zu Hause mitnehmen." },
     { img: "img/decke.jpg",        title: "Unter dem Licht",  text: "Die Waben-Decke sorgt für schattenfreies Licht – perfekt für präzise Fades." },

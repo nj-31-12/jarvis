@@ -672,20 +672,6 @@ $$(".section-head, .service, .barber, .contact-card, .booking-card, .rating-card
   }
 })();
 
-/* ---------------- Film (MP4) ---------------- */
-(function filmVideo() {
-  const v = $("#filmVideo"); if (!v) return;
-  document.addEventListener("click", (e) => {
-    if (!e.target.closest("[data-film]")) return;
-    const tall = matchMedia("(orientation: portrait)").matches;
-    const src = `film/axaray-rundgang-${tall ? "9x16" : "16x9"}.mp4`;
-    if (!v.src.endsWith(src)) v.src = src;
-    $("#filmModal").classList.toggle("tall", tall);
-    openModal("#filmModal"); v.play().catch(() => {});
-  });
-  new MutationObserver(() => $("#filmModal").hidden && v.pause()).observe($("#filmModal"), { attributes: true });
-})();
-
 /* ---------------- Standort-Concierge ("Nachbarschafts-Bonus") ----------------
  * Mit Erlaubnis des Kunden wird der Standort geprüft, solange die Seite (oder die installierte Web-App) offen ist.
  * In der Nähe (z. B. 250 m): Hinweis auf freie Stühle, Nachschnitt, Stempel.
