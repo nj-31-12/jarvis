@@ -28,7 +28,8 @@ Lokal ansehen: `python3 -m http.server` im Ordner, dann http://localhost:8000
 4. **Style-Studio** – realistischer 3D-Kopf: Gesichtsform, Hautton, 8 Haarschnitte, 6 Fade-Stufen, 6 Bärte, Farben. ★ zeigt, was zur Gesichtsform passt. „Diesen Look buchen“ übernimmt alles in die Buchung
 5. **Bewertungen** – Übersichtskarte (5,0 · 34), Laufband in 2 Reihen (antippen = anhalten), Umschalter auf Rasteransicht
 6. **Buchung & Bezahlung** – Leistung, Barber, Tag, Uhrzeit, Daten, Zahlung (PayPal, Apple Pay, Google Pay, Karte, Klarna oder vor Ort), Kalender-Export
-7. **Kundenkonto** – Daten, bevorzugte Zahlung, gemerkter Look, Terminliste
+7. **Kundenkonto** – Swipe-Ansicht mit allen Vorteilen, digitale Stempelkarte (10 Stempel = Haarschnitt gratis + Getränk, 1. Stempel geschenkt), Gutscheine, Zahlungsart, gemerkter Look, Termine
+9. **Standort-Concierge** – mit Erlaubnis des Kunden: in der Nähe des Ladens (250 m) meldet sich der Assistent (freier Stuhl, Nachschnitt fällig, Stempelstand, spontan vorbeikommen), im Laden (30 m) fragt er nach dem Aufenthalt und bietet Getränk, Stempel, Wunsch-Look, nächsten Termin, Google-Bewertung und Feedback an. Einstellungen: `geo` und `loyalty` in `config.js`. Ereignisse (Kunde in der Nähe, Getränk, Bewertung) gehen an `bookingWebhook`
 8. **Anfahrt** – Adler-Ansicht (Luftbild im Hochformat), Navi per Google Maps oder Apple Karten, „~10 Min. von Aschaffenburg“
 
 ## Vor dem Livegang (in `config.js`)

@@ -201,19 +201,67 @@ const studio = (() => {
   return { set, look };
 })();
 
-/* ---------------- Kundenkonto (Demo: nur auf diesem Gerät) ---------------- */
+/* ---------------- Kundenkonto + Stempelkarte (Demo: nur auf diesem Gerät) ---------------- */
 const account = (() => {
-  const KEY = "axaray-account";
+  const KEY = "axaray-account", L = C.loyalty;
   const get = () => store.get(KEY);
   const save = (a) => { store.set(KEY, a); renderStrip(); booking?.fillFromAccount?.(); };
   const bookings = () => store.get("axaray-bookings") || [];
+  const today = () => new Date().toISOString().slice(0, 10);
+
+  // Stempel vergeben; bei voller Karte entsteht ein Gutschein
+  function addStamp(reason) {
+    const a = get(); if (!a) return null;
+    a.stamps = (a.stamps || 0) + 1;
+    a.stampLog = [...(a.stampLog || []), { at: new Date().toISOString(), reason }];
+    let reward = null;
+    if (a.stamps >= L.stamps) {
+      reward = { code: "AX-" + Math.random().toString(36).slice(2, 6).toUpperCase(), title: L.reward, created: new Date().toISOString(), used: false };
+      a.rewards = [...(a.rewards || []), reward];
+      a.stamps = 0;
+    }
+    save(a);
+    return { stamps: a.stamps, reward };
+  }
+  const stampedToday = () => (get()?.stampLog || []).some((s) => s.at.slice(0, 10) === today() && s.reason === "Besuch");
+
+  const stampGrid = (n, total = L.stamps, mini = false) => `<div class="stamps${mini ? " mini" : ""}">${[...Array(total)].map((_, i) =>
+    `<span class="stamp${i < n ? " on" : ""}">${i < n ? "✂" : i + 1}</span>`).join("")}<span class="stamp gift">🎁</span></div>`;
+
+  // Swipe-Ansicht mit den Vorteilen
+  const perks = () => `
+    <div class="perks" data-perks>
+      <div class="perks-track">${L.perks.map((p) => `
+        <article class="perk">
+          <span class="perk-ico">${p.icon}</span>
+          <h4>${esc(p.title)}</h4>
+          <p>${esc(p.text)}</p>
+          ${p.stamps ? stampGrid(3, L.stamps, true) : ""}
+        </article>`).join("")}</div>
+      <div class="perks-dots">${L.perks.map((_, i) => `<button type="button" aria-label="Vorteil ${i + 1}" data-i="${i}"></button>`).join("")}</div>
+      <p class="tiny muted center">← wischen →</p>
+    </div>`;
+  function initPerks(root) {
+    const el = $("[data-perks]", root); if (!el) return;
+    const track = $(".perks-track", el), dots = $$(".perks-dots button", el);
+    let i = 0, user = false;
+    const go = (k) => track.scrollTo({ left: k * track.clientWidth, behavior: "smooth" });
+    const sync = () => { i = Math.round(track.scrollLeft / track.clientWidth); dots.forEach((d, k) => d.classList.toggle("on", k === i)); };
+    track.addEventListener("scroll", sync, { passive: true });
+    ["pointerdown", "touchstart"].forEach((ev) => track.addEventListener(ev, () => (user = true), { passive: true }));
+    dots.forEach((d) => d.addEventListener("click", () => { user = true; go(+d.dataset.i); }));
+    sync();
+    const t = setInterval(() => { if (!document.body.contains(el)) return clearInterval(t); if (!user) go((i + 1) % dots.length); }, 3800);
+  }
 
   function open(msg = "") {
     const a = get(), body = $("#accountBody");
     if (!a) {
       body.innerHTML = `
-        <h3 id="accTitle">Kundenkonto anlegen</h3>
-        <p class="muted small">${esc(msg || "Schneller buchen, Zahlungsart speichern, Termine im Blick.")}</p>
+        <p class="eyebrow">Axaray Stammkunde</p>
+        <h3 id="accTitle">Das bekommst du mit deinem Konto</h3>
+        ${perks()}
+        ${msg ? `<p class="small gold">${esc(msg)}</p>` : ""}
         <form id="accForm" class="fields acc-fields">
           <label class="full">Name<input name="name" autocomplete="name" required></label>
           <label class="full">Telefon<input name="phone" type="tel" autocomplete="tel" required></label>
@@ -221,20 +269,40 @@ const account = (() => {
           <label class="full">Bevorzugte Zahlung
             <select name="pay">${C.payment.methods.map((m) => `<option value="${m.id}">${m.name}</option>`).join("")}<option value="vorort">Vor Ort bezahlen</option></select>
           </label>
-          <button class="btn btn-gold btn-block full" type="submit">Konto anlegen</button>
+          <label class="check-row full"><input type="checkbox" name="geo"> <span>📍 Nachbarschafts-Bonus: Wenn ich am Laden vorbeikomme, darf mich der Axaray-Assistent ansprechen (Standort nur während die Seite offen ist).</span></label>
+          <button class="btn btn-gold btn-block full" type="submit">Kostenlos Konto anlegen 🎁</button>
         </form>
         <p class="tiny muted">Demo: Daten bleiben nur auf diesem Gerät. Live: Login per E-Mail-Code, Zahlungsdaten sicher beim Zahlungsanbieter.</p>`;
+      initPerks(body);
       $("#accForm").addEventListener("submit", (e) => {
         e.preventDefault(); const f = e.target;
         if (!f.name.value.trim() || !f.phone.value.trim() || !/@/.test(f.email.value)) return;
-        save({ name: f.name.value.trim(), phone: f.phone.value.trim(), email: f.email.value.trim(), pay: f.pay.value, since: new Date().toISOString() });
+        save({ name: f.name.value.trim(), phone: f.phone.value.trim(), email: f.email.value.trim(), pay: f.pay.value, since: new Date().toISOString(), stamps: 0, rewards: [], stampLog: [] });
+        for (let k = 0; k < (L.welcomeStamp || 0); k++) addStamp("Willkommen");
         open();
+        if (f.geo.checked) geo.enable(() => !$("#accountModal").hidden && open()); setTimeout(() => $(".stamp-card")?.classList.add("pop"), 80);
       });
     } else {
-      const list = bookings().slice().reverse();
+      const list = bookings().slice().reverse(), n = a.stamps || 0, left = L.stamps - n;
+      const rewards = (a.rewards || []).filter((r) => !r.used);
       body.innerHTML = `
         <h3 id="accTitle">Hallo ${esc(a.name.split(" ")[0])} 👋</h3>
         <p class="muted small">${esc(a.email)} · ${esc(a.phone)}</p>
+        <div class="stamp-card">
+          <div class="stamp-head"><span class="logo-mark">A</span><div><b>Axaray Stempelkarte</b><span class="tiny muted">${L.stamps} Stempel = ${esc(L.reward)}</span></div><b class="stamp-count">${n}/${L.stamps}</b></div>
+          ${stampGrid(n)}
+          <p class="small">${left > 0 ? `Noch <b class="gold">${left} ${left === 1 ? "Stempel" : "Stempel"}</b> bis zu deinem Gratis-Haarschnitt + Getränk.` : ""}</p>
+          <p class="tiny muted">Stempel gibt’s pro Besuch – dein Barber bestätigt ihn an der Kasse.${C.draft ? " (Demo: Stempel bei Online-Buchung oder Check-in im Laden.)" : ""}</p>
+        </div>
+        ${rewards.map((r) => `<div class="voucher"><span>🎁</span><div><b>${esc(r.title)}</b><span class="tiny muted">Code <b>${r.code}</b> · beim Barber vorzeigen</span></div></div>`).join("")}
+        <h4>Deine Vorteile</h4>
+        ${perks()}
+        <div class="acc-box geo-box">
+          <span class="muted small">📍 Nachbarschafts-Bonus</span>
+          <b>${geo.enabled() ? "Aktiv – wir melden uns, wenn du in der Nähe bist" : "Aus"}</b>
+          <button class="btn btn-ghost btn-sm" id="accGeo" type="button">${geo.enabled() ? "Ausschalten" : "Einschalten"}</button>
+          ${C.draft ? `<div class="demo-row"><span class="tiny muted">Demo für den Inhaber:</span><button class="btn-link" id="simNear" type="button">Vorbeilaufen simulieren</button><button class="btn-link" id="simInside" type="button">Im Laden simulieren</button></div>` : ""}
+        </div>
         <div class="acc-box"><span class="muted small">Bevorzugte Zahlung</span><b>${esc((C.payment.methods.find((m) => m.id === a.pay) || { name: "Vor Ort" }).name)}</b></div>
         ${a.look ? `<div class="acc-box"><span class="muted small">Gemerkter Look</span><b>${esc(a.look.title)}</b><button class="btn btn-ghost btn-sm" id="accLook" type="button">Ansehen</button></div>` : ""}
         <h4>Deine Termine</h4>
@@ -242,20 +310,24 @@ const account = (() => {
           <div class="acc-booking"><div><b>${esc(b.service)}</b><span class="muted small">${fmtDate(new Date(b.start))}, ${fmtTime(new Date(b.start).getHours() * 60 + new Date(b.start).getMinutes())} · ${esc(b.barber)}</span></div>
           <span class="badge ${b.paid ? "ok" : ""}">${b.paid ? "bezahlt" : "vor Ort"}</span></div>`).join("") : '<p class="muted small">Noch keine Termine.</p>'}</div>
         <div class="acc-actions"><a href="#termin" class="btn btn-gold btn-sm" data-close>Neuen Termin buchen</a><button class="btn btn-link" id="accOut" type="button">Abmelden</button></div>`;
+      initPerks(body);
       $("#accOut").addEventListener("click", () => { store.del(KEY); renderStrip(); open(); });
       $("#accLook")?.addEventListener("click", () => { studio.set(a.look.cfg); closeModal($("#accountModal")); $("#studio").scrollIntoView({ behavior: "smooth" }); });
+      $("#accGeo").addEventListener("click", () => { if (geo.enabled()) { geo.disable(); open(); } else geo.enable(() => !$("#accountModal").hidden && open()); });
+      $("#simNear")?.addEventListener("click", () => { closeModal($("#accountModal")); geo.simulate("near"); });
+      $("#simInside")?.addEventListener("click", () => { closeModal($("#accountModal")); geo.simulate("inside"); });
     }
     openModal("#accountModal");
   }
   function renderStrip() {
     const a = get();
     $("#accountStrip").innerHTML = a
-      ? `<span>👤 Angemeldet als <b>${esc(a.name)}</b></span><button type="button" class="btn-link" data-open-account>Konto</button>`
-      : `<span>Schneller buchen mit Kundenkonto</span><button type="button" class="btn-link" data-open-account>Anmelden / Konto anlegen</button>`;
+      ? `<span>👤 <b>${esc(a.name)}</b> · 🎟 ${a.stamps || 0}/${L.stamps} Stempel</span><button type="button" class="btn-link" data-open-account>Stempelkarte</button>`
+      : `<span>🎟 Stempel sammeln: 10. Besuch = Haarschnitt gratis + Getränk</span><button type="button" class="btn-link" data-open-account>Konto anlegen</button>`;
   }
   document.addEventListener("click", (e) => { if (e.target.closest("[data-open-account]")) open(); });
   renderStrip();
-  return { get, save, open };
+  return { get, save, open, addStamp, stampedToday };
 })();
 
 /* ---------------- Terminbuchung + Bezahlung ---------------- */
@@ -375,6 +447,7 @@ const booking = (() => {
       try { sent = (await fetch(C.bookingWebhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(req) })).ok; } catch {}
     }
     const list = store.get("axaray-bookings") || []; list.push(req); store.set("axaray-bookings", list);
+    req.stamp = C.draft ? account.addStamp("Buchung") : null; // live: Stempel bestätigt der Barber nach dem Besuch
     done(req, start, sent);
   });
 
@@ -425,6 +498,7 @@ const booking = (() => {
     $("#doneTitle").textContent = req.paid ? "Gebucht & bezahlt!" : "Termin gebucht!";
     $("#doneText").innerHTML = `Danke ${esc(req.name.split(" ")[0])}! <b>${esc(req.service)}</b> bei <b>${esc(req.barber)}</b><br> am <b>${dateText}</b> um <b>${time} Uhr</b>.<br>
       <span class="muted small">Buchungsnummer ${req.id} · ${req.paid ? `${euro(req.price)} bezahlt – Beleg an ${esc(req.email)}` : "Bezahlung vor Ort"}</span>
+      ${req.stamp ? `<br><span class="small gold">🎟 +1 Stempel – ${req.stamp.reward ? `Karte voll! Gutschein ${req.stamp.reward.code}: ${esc(req.stamp.reward.title)}` : `${req.stamp.stamps}/${C.loyalty.stamps} gesammelt`}</span>` : !account.get() ? `<br><span class="small"><button type="button" class="btn-link" data-open-account>🎟 Konto anlegen und Stempel für diesen Besuch sichern</button></span>` : ""}
       ${C.bookingWebhook && !sent ? '<br><span class="small" style="color:#ffb547">Übermittlung fehlgeschlagen – bitte kurz anrufen.</span>' : ""}
       ${!C.bookingWebhook && C.draft ? '<br><span class="tiny muted">Entwurf: Buchungen werden noch nicht an den Salon übertragen.</span>' : ""}`;
     $("#doneActions").innerHTML = actions.join("");
@@ -489,6 +563,24 @@ $$(".section-head, .service, .barber, .contact-card, .booking-card, .rating-card
       speechSynthesis.speak(u);
     }
   }
+  // Proaktive Nachrichten mit Antwort-Buttons (für den Standort-Concierge)
+  let pendingInput = null;
+  function ask(text, options = []) {
+    bot(text);
+    if (!options.length) return;
+    const row = document.createElement("div"); row.className = "msg-actions";
+    options.forEach((o) => {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = o.label;
+      b.addEventListener("click", () => { row.remove(); add(o.label, "me"); o.run && o.run(); });
+      row.appendChild(b);
+    });
+    log.appendChild(row); log.scrollTop = log.scrollHeight;
+  }
+  window.concierge = {
+    open() { greeted = true; toggle(true); },
+    ask, say: (t) => bot(t),
+    expectText(cb, placeholder) { pendingInput = cb; if (placeholder) input.placeholder = placeholder; setTimeout(() => input.focus(), 60); },
+  };
   $("#vaForm").addEventListener("submit", (e) => { e.preventDefault(); const t = input.value.trim(); if (!t) return; input.value = ""; handle(t); });
   if (!SR) { mic.title = "Spracheingabe wird von diesem Browser nicht unterstützt"; mic.style.opacity = .4; }
   mic.addEventListener("click", () => {
@@ -531,7 +623,14 @@ $$(".section-head, .service, .barber, .contact-card, .booking-card, .rating-card
   const go = (sel) => $(sel).scrollIntoView({ behavior: "smooth" });
 
   function handle(raw) {
+    if (pendingInput) { const cb = pendingInput; pendingInput = null; input.placeholder = "z. B. „Fade morgen um 15 Uhr“"; add(raw, "me"); return cb(raw); }
     add(raw, "me");
+    if (/stempel|treue|gratis|bonus/.test(norm(raw))) {
+      const a = account.get();
+      if (!a) return window.concierge.ask("Mit einem kostenlosen Kundenkonto sammelst du Stempel: Bei 10 Stempeln gibt’s einen Haarschnitt gratis + ein Getränk. Der erste Stempel ist geschenkt!", [{ label: "🎁 Konto anlegen", run: () => account.open() }]);
+      return window.concierge.ask(`Du hast ${a.stamps || 0} von ${C.loyalty.stamps} Stempeln. Noch ${C.loyalty.stamps - (a.stamps || 0)} bis zum Gratis-Haarschnitt + Getränk.`, [{ label: "🎟 Stempelkarte öffnen", run: () => account.open() }]);
+    }
+    if (/standort|in der nahe|vorbeilauf|gps/.test(norm(raw))) return window.concierge.ask("Mit dem Nachbarschafts-Bonus melde ich mich, wenn du am Laden vorbeikommst – z. B. wenn gerade ein Stuhl frei ist. Dein Standort wird nur geprüft, solange die Seite offen ist.", [{ label: "📍 Einschalten", run: () => geo.enable() }]);
     const t = norm(raw), svc = parseService(t), date = parseDate(t), time = parseTime(t);
     const wantsBooking = /termin|buchen|reservier|frei|platz|kommen|vorbei/.test(t) || (svc && (date || time != null));
     if (/hallo|hi\b|hey|servus|guten|selam|merhaba/.test(t) && t.length < 20) return bot("Hey! Wie kann ich dir helfen – Termin, Preise oder Anfahrt?");
@@ -585,4 +684,119 @@ $$(".section-head, .service, .barber, .contact-card, .booking-card, .rating-card
     openModal("#filmModal"); v.play().catch(() => {});
   });
   new MutationObserver(() => $("#filmModal").hidden && v.pause()).observe($("#filmModal"), { attributes: true });
+})();
+
+/* ---------------- Standort-Concierge ("Nachbarschafts-Bonus") ----------------
+ * Mit Erlaubnis des Kunden wird der Standort geprüft, solange die Seite (oder die installierte Web-App) offen ist.
+ * In der Nähe (z. B. 250 m): Hinweis auf freie Stühle, Nachschnitt, Stempel.
+ * Im Laden (z. B. 30 m): Begrüßung, „Wie ist dein Aufenthalt?“, Getränk, Stempel, Bewertung, Feedback.
+ */
+const geo = (() => {
+  const G = C.geo, KEY = "axaray-geo";
+  let watchId = null;
+  const st = () => store.get(KEY) || {};
+  const put = (patch) => store.set(KEY, { ...st(), ...patch });
+  const enabled = () => !!st().on;
+  const dayKey = () => new Date().toISOString().slice(0, 10);
+  const meters = (a, b) => {
+    const R = 6371000, toR = (x) => x * Math.PI / 180, dLat = toR(b.lat - a.lat), dLng = toR(b.lng - a.lng);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(toR(a.lat)) * Math.cos(toR(b.lat)) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  };
+  const ping = (type, data = {}) => { if (C.bookingWebhook) fetch(C.bookingWebhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type, at: new Date().toISOString(), customer: account.get()?.name || null, ...data }) }).catch(() => {}); };
+
+  function enable(cb) {
+    if (!navigator.geolocation) return concierge.open(), concierge.say("Dein Browser unterstützt leider keine Standortfreigabe.");
+    navigator.geolocation.getCurrentPosition(() => { put({ on: true }); start(); cb && cb(); concierge.open(); concierge.say("📍 Nachbarschafts-Bonus ist an. Wenn du in der Nähe von Axaray bist, melde ich mich – versprochen nicht zu oft."); if ("Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {}); },
+      () => { concierge.open(); concierge.say("Ohne Standortfreigabe klappt der Nachbarschafts-Bonus leider nicht. Du kannst ihn jederzeit im Konto einschalten."); }, { timeout: 15000 });
+  }
+  function disable() { put({ on: false }); if (watchId != null) navigator.geolocation.clearWatch(watchId); watchId = null; }
+  function start() {
+    if (watchId != null || !navigator.geolocation) return;
+    watchId = navigator.geolocation.watchPosition((p) => check(meters({ lat: p.coords.latitude, lng: p.coords.longitude }, G)), () => {}, { enableHighAccuracy: true, maximumAge: 60000, timeout: 30000 });
+  }
+  function check(d, demo = false) {
+    const s = st(), now = Date.now();
+    if (d <= G.inside) { if (demo || s.insideDay !== dayKey()) { put({ insideDay: dayKey() }); insideFlow(); } return; }
+    if (d <= G.near && (demo || now - (s.nearAt || 0) > G.cooldownHours * 3600e3)) { put({ nearAt: now }); nearFlow(Math.round(d)); }
+  }
+  function notify(text) {
+    if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+      try { new Notification("Axaray Barbers", { body: text, icon: "img/goldstuhl.jpg" }); } catch {}
+    }
+  }
+
+  const firstName = () => (account.get()?.name || "").split(" ")[0];
+  const lastVisitDays = () => {
+    const past = (store.get("axaray-bookings") || []).map((b) => new Date(b.start)).filter((d) => d < new Date()).sort((a, b) => b - a)[0];
+    return past ? Math.floor((Date.now() - past) / 864e5) : null;
+  };
+  const todayDate = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+
+  /* --- Kunde läuft am Laden vorbei --- */
+  function nearFlow(d) {
+    const os = openState(), name = firstName(), a = account.get();
+    const free = os.cls === "closed" ? 0 : booking.availableSlots(todayDate()).length;
+    const lines = [`Hey${name ? " " + name : ""}! 👋 Du bist gerade nur ca. ${d} m von Axaray Barbers entfernt.`];
+    if (os.cls === "closed") lines.push(`Wir haben gerade zu – ${os.text.replace("Geschlossen · ", "")}. Soll ich dir schon einen Platz sichern?`);
+    else lines.push(free > 3 ? "Gerade ist es ruhig im Laden – du kommst ohne Wartezeit dran. 💺" : free > 0 ? `Heute sind noch ${free} Termine frei.` : "Online sind die Termine für heute durch – spontan klappt’s oft trotzdem.");
+    const days = lastVisitDays();
+    if (days != null && days >= 21) lines.push(`Dein letzter Schnitt ist ${days} Tage her – Zeit für ein frisches Update? ✂`);
+    if (a && (a.stamps || 0) === C.loyalty.stamps - 1) lines.push("🎁 Nur noch 1 Stempel bis zum Gratis-Haarschnitt + Getränk!");
+    else if (a) lines.push(`🎟 Du hast ${a.stamps || 0}/${C.loyalty.stamps} Stempel.`);
+    else lines.push("🎟 Tipp: Mit Kundenkonto sammelst du Stempel – 10. Besuch = Haarschnitt gratis + Getränk.");
+    const opts = [];
+    if (os.cls !== "closed") opts.push({ label: "✂ Ich komm spontan vorbei", run: () => { ping("walkin_announced", { distance: d }); concierge.say("Top! Komm einfach rein – wir halten dir einen Stuhl warm. Ein Getränk wartet schon auf dich. ☕"); } });
+    opts.push({ label: "📅 Termin sichern", run: () => { booking.prefill({ date: os.cls === "closed" ? null : todayDate() }); booking.focus(); concierge.say("Ich hab dir das Formular geöffnet – such dir einfach eine Uhrzeit aus."); } });
+    opts.push({ label: "🧔 Nur kurz den Bart", run: () => { booking.prefill({ service: "beard", date: todayDate() }); booking.focus(); concierge.say("Bart trimmen dauert nur ca. 20 Minuten – such dir eine Uhrzeit aus."); } });
+    if (!a) opts.push({ label: "🎁 Stempelkarte holen", run: () => account.open() });
+    opts.push({ label: "Heute nicht", run: () => concierge.say("Alles klar – bis zum nächsten Mal! 👋") });
+    concierge.open(); concierge.ask(lines.join("\n"), opts);
+    notify(lines[0] + " " + lines[1]);
+    ping("customer_nearby", { distance: d });
+  }
+
+  /* --- Kunde ist im Laden --- */
+  function insideFlow() {
+    const name = firstName();
+    concierge.open();
+    concierge.ask(`Willkommen bei Axaray Barbers${name ? ", " + name : ""}! 💈 Schön, dass du da bist.\nWie ist dein Aufenthalt bisher?`, [
+      { label: "😍 Top", run: () => rated(5) }, { label: "🙂 Gut", run: () => rated(4) },
+      { label: "😐 Geht so", run: () => rated(3) }, { label: "🙁 Nicht gut", run: () => rated(2) },
+    ]);
+    notify("Willkommen bei Axaray! Wie ist dein Aufenthalt?");
+    ping("customer_inside");
+  }
+  function rated(r) {
+    ping("stay_rating", { rating: r });
+    concierge.say(r >= 4 ? "Freut uns riesig! 🙌" : "Danke für deine Ehrlichkeit – dein Barber kümmert sich darum.");
+    menu();
+  }
+  function menu() {
+    const a = account.get(), opts = [];
+    opts.push({ label: "☕ Getränk bestellen", run: drinks });
+    if (a && !account.stampedToday()) opts.push({ label: "🎟 Stempel abholen", run: () => {
+      const res = account.addStamp("Besuch");
+      concierge.say(res.reward ? `🎉 Karte voll! Dein Gutschein: ${res.reward.title} – Code ${res.reward.code}. Zeig ihn deinem Barber.` : `✂ Stempel ist drauf! ${res.stamps}/${C.loyalty.stamps} – noch ${C.loyalty.stamps - res.stamps} bis zum Gratis-Haarschnitt.${C.draft ? "" : " (Dein Barber bestätigt ihn an der Kasse.)"}`);
+      menu();
+    } });
+    if (!a) opts.push({ label: "🎁 Stempelkarte anlegen", run: () => account.open("Leg dein Konto an – der heutige Besuch zählt schon als Stempel.") });
+    opts.push({ label: "💈 Mein Wunsch-Look", run: () => { $("#studio").scrollIntoView({ behavior: "smooth" }); concierge.say("Zeig deinem Barber deinen Look im 3D Style-Studio – dann weiß er sofort, was du willst."); } });
+    opts.push({ label: "📅 Nächsten Termin vormerken", run: () => { const d = todayDate(); d.setDate(d.getDate() + 20); booking.prefill({ date: d }); booking.focus(); concierge.say("In ca. 3 Wochen ist der perfekte Zeitpunkt fürs Nachschneiden – such dir eine Uhrzeit aus."); } });
+    opts.push({ label: "⭐ Google-Bewertung", run: () => { window.open(C.reviewWriteUrl || C.reviewUrl, "_blank", "noopener"); concierge.say("Danke! Jede Bewertung hilft uns enorm. 🙏"); } });
+    opts.push({ label: "💬 Feedback an den Chef", run: () => { concierge.say("Schreib mir einfach, was dir gefällt oder was wir besser machen können – es geht direkt an den Inhaber."); concierge.expectText((t) => { ping("feedback", { text: t }); const fb = store.get("axaray-feedback") || []; fb.push({ t, at: new Date().toISOString() }); store.set("axaray-feedback", fb); concierge.say("Danke, ist angekommen! 💛"); }, "Dein Feedback …"); } });
+    concierge.ask("Was kann ich für dich tun?", opts);
+  }
+  function drinks() {
+    concierge.ask("Was darf’s sein? Geht aufs Haus. ☕", ["☕ Kaffee", "🍵 Tee", "💧 Wasser", "🥤 Cola"].map((d) => ({ label: d, run: () => {
+      ping("drink_order", { drink: d });
+      concierge.say(`${d} kommt gleich zu dir!${C.bookingWebhook ? "" : C.draft ? " (Demo – live landet die Bestellung direkt auf dem Tablet am Empfang.)" : ""}`);
+      menu();
+    } })));
+  }
+
+  // Bereits erteilte Freigabe beim Laden der Seite weiter nutzen (ohne neue Abfrage)
+  if (enabled() && navigator.permissions?.query) navigator.permissions.query({ name: "geolocation" }).then((r) => r.state === "granted" && start()).catch(() => {});
+
+  return { enable, disable, enabled, simulate: (kind) => check(kind === "inside" ? 5 : 180, true) };
 })();

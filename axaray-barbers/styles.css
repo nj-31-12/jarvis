@@ -426,3 +426,53 @@ section { padding: 80px 16px; position: relative; }
 .film-modal.tall .film-card { max-width: min(420px, 96vw); }
 .film-card video { width: 100%; display: block; max-height: 86svh; background: #000; }
 .film-card .modal-close { z-index: 2; color: #fff; text-shadow: 0 1px 4px #000; }
+
+/* ---------- Kundenkonto: Swipe-Vorteile ---------- */
+.perks { display: grid; gap: 8px; }
+.perks-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: 18px; }
+.perks-track::-webkit-scrollbar { display: none; }
+.perk {
+  flex: 0 0 100%; scroll-snap-align: center; padding: 20px 18px; min-height: 190px; display: grid; gap: 6px; align-content: start;
+  background: radial-gradient(ellipse at 85% 0%, rgba(212,175,55,.28), transparent 60%), linear-gradient(160deg, #1f1b10, #121214 70%);
+  border: 1px solid rgba(212,175,55,.35); border-radius: 18px;
+}
+.perk-ico { font-size: 2rem; line-height: 1; }
+.perk h4 { font-family: var(--serif); font-size: 1.15rem; color: var(--gold-2); margin: 4px 0 0; }
+.perk p { font-size: .9rem; color: #d9d4c7; }
+.perks-dots { display: flex; justify-content: center; gap: 6px; }
+.perks-dots button { width: 7px; height: 7px; border-radius: 50%; border: 0; padding: 0; background: #444; transition: .2s; }
+.perks-dots button.on { background: var(--gold); width: 20px; border-radius: 4px; }
+
+/* ---------- Stempelkarte ---------- */
+.stamp-card {
+  padding: 16px; border-radius: 18px; display: grid; gap: 12px;
+  background: linear-gradient(135deg, #2b2312, #141416 60%); border: 1px solid var(--gold);
+  box-shadow: 0 12px 40px -18px rgba(212,175,55,.7);
+}
+.stamp-card.pop { animation: pop .6s; }
+@keyframes pop { 40% { transform: scale(1.04); } }
+.stamp-head { display: flex; align-items: center; gap: 10px; }
+.stamp-head div { display: grid; flex: 1; line-height: 1.25; }
+.stamp-count { font-family: var(--serif); font-size: 1.4rem; color: var(--gold-2); }
+.stamps { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.stamps.mini { grid-template-columns: repeat(11, 1fr); gap: 4px; margin-top: 8px; }
+.stamp {
+  aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; font-size: .8rem; color: #6b675f;
+  border: 1.5px dashed rgba(212,175,55,.45); background: rgba(0,0,0,.25);
+}
+.stamps.mini .stamp { font-size: .55rem; border-width: 1px; }
+.stamp.on { border: 0; color: #1a1405; font-size: 1rem; background: radial-gradient(circle at 35% 30%, var(--gold-2), var(--gold) 55%, var(--gold-dark)); box-shadow: 0 2px 10px -2px rgba(212,175,55,.8); transform: rotate(-12deg); }
+.stamps.mini .stamp.on { font-size: .6rem; }
+.stamp.gift { border: 1.5px solid var(--gold); font-size: 1.05rem; background: rgba(212,175,55,.12); }
+.voucher { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 14px; background: rgba(61,220,132,.1); border: 1px dashed var(--ok); }
+.voucher > span { font-size: 1.6rem; }
+.voucher div { display: grid; }
+.check-row { display: flex !important; gap: 10px; align-items: flex-start; font-size: .8rem; color: #d9d4c7 !important; }
+.check-row input { width: 18px !important; height: 18px; flex-shrink: 0; margin-top: 2px; accent-color: var(--gold); padding: 0 !important; }
+.geo-box b { flex: 1; }
+.demo-row { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; padding-top: 8px; border-top: 1px dashed var(--line); }
+
+/* ---------- Concierge-Antworten im Chat ---------- */
+.msg-actions { display: flex; flex-wrap: wrap; gap: 6px; max-width: 95%; }
+.msg-actions button { background: rgba(212,175,55,.1); border: 1px solid rgba(212,175,55,.5); color: var(--gold-2); padding: 8px 12px; border-radius: 999px; font-size: .82rem; }
+.msg-actions button:hover { background: rgba(212,175,55,.22); }

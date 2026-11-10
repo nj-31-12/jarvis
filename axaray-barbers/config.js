@@ -28,6 +28,24 @@ window.CONFIG = {
     ],
   },
 
+  // Standort-Concierge: spricht Kunden an, wenn sie am Laden vorbeilaufen (nur mit ihrer Erlaubnis)
+  geo: { lat: 50.003465, lng: 9.20394, near: 250, inside: 30, cooldownHours: 6 },
+
+  // Treueprogramm (alle Texte frei änderbar)
+  loyalty: {
+    stamps: 10,
+    reward: "1 Haarschnitt gratis + 1 Getränk",
+    welcomeStamp: 1, // Stempel als Willkommensgeschenk beim Anlegen des Kontos
+    perks: [
+      { icon: "🎟", title: "Digitale Stempelkarte", text: "Jeder Besuch = 1 Stempel. Bei 10 Stempeln gibt’s einen Haarschnitt gratis + ein Getränk aufs Haus.", stamps: true },
+      { icon: "🎁", title: "1. Stempel geschenkt", text: "Konto anlegen und sofort starten – dein erster Stempel ist schon drauf." },
+      { icon: "⚡", title: "In 10 Sekunden gebucht", text: "Name, Telefon und Zahlungsart sind gespeichert. Nur noch Uhrzeit wählen – fertig." },
+      { icon: "💈", title: "Dein Look ist gespeichert", text: "Dein Barber sieht deinen Wunsch-Schnitt aus dem Style-Studio schon vor dem Termin." },
+      { icon: "📍", title: "Nachbarschafts-Bonus", text: "Läufst du am Laden vorbei, sagen wir dir, ob gerade ein Stuhl frei ist – ganz ohne Wartezeit." },
+      { icon: "🔔", title: "Nachschnitt-Erinnerung", text: "Nach 3–4 Wochen melden wir uns, bevor dein Fade rauswächst." },
+    ],
+  },
+
   // 0 = Sonntag … 6 = Samstag; [öffnet, schließt] in Minuten ab Mitternacht
   hours: { 0: null, 1: [540, 1110], 2: [540, 1110], 3: [540, 1110], 4: [540, 1110], 5: [540, 1110], 6: [540, 990] },
   slotMinutes: 30,
