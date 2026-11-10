@@ -208,7 +208,7 @@ section { padding: 80px 16px; position: relative; }
 .look-card { margin-top: 6px; padding: 14px; border-radius: 16px; background: rgba(212,175,55,.07); border: 1px dashed rgba(212,175,55,.4); display: grid; gap: 12px; }
 .look-title { font-family: var(--serif); font-size: 1.15rem; color: var(--gold-2); }
 .look-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-.look-actions .btn-gold { flex: 1; }
+.look-actions .btn-gold { flex: 1 1 100%; }
 
 /* ---------- Leistungen ---------- */
 .service-grid { display: grid; gap: 14px; max-width: 980px; margin: 0 auto; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
