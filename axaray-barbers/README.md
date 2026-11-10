@@ -19,10 +19,10 @@ Lokal ansehen: `python3 -m http.server` im Ordner, dann http://localhost:8000
 
 ## Bereiche
 1. **Start** – 3D-Waben-Lichtdecke, Barber-Pole, Live-Öffnungsstatus
-2. **Film-Rundgang** – der Laden als 3D-Raum (5 × 7,5 m) mit dem echten Grundriss:
+2. **Begehbarer Laden** (Ego-Perspektive) – der Laden als 3D-Raum (5 × 7,5 m) mit dem echten Grundriss:
    vorne links Eingang, links die 3 Plätze mit Spiegeln, hinten links Waschplatz, hinten rechts Kasse,
-   rechts am Fenster die Lounge, Waben-Lichtdecke über allem. Die Kamera fliegt beim Scrollen
-   (oder per „Film abspielen“) durch den Raum, an jeder Station blendet das echte Foto ein.
+   rechts am Fenster die Lounge, Waben-Lichtdecke über allem. „Laden betreten“ fliegt von der Straße durch die Tür;
+   danach: ziehen = umsehen, Boden antippen = hinlaufen, goldene Punkte = Infos (Kasse: Termin & Zahlung, Plätze: Barber & Haarschnitte, Fragen, Lounge, Waschplatz, Produkte, Eingang).
    Grundriss-Karte oben links zeigt, wo man gerade steht.
 3. **Barber** – 3 Plätze mit Barber, Spezialgebiet und 3 Signature-Cuts (als 3D-Vorschau; antippen öffnet den Look im Studio)
 4. **Style-Studio** – realistischer 3D-Kopf: Gesichtsform, Hautton, 8 Haarschnitte, 6 Fade-Stufen, 6 Bärte, Farben. ★ zeigt, was zur Gesichtsform passt. „Diesen Look buchen“ übernimmt alles in die Buchung

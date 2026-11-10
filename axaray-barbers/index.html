@@ -73,21 +73,25 @@
   <!-- RUNDGANG: scrollen = durch den Salon laufen -->
   <section class="tour" id="rundgang" aria-label="Virtueller Rundgang durch den Salon">
     <div class="tour-sticky">
-      <canvas id="tourCanvas" aria-hidden="true"></canvas>
+      <canvas id="tourCanvas" aria-label="Begehbarer 3D-Salon"></canvas>
       <div class="film-bars" aria-hidden="true"></div>
-      <div class="film-grain" aria-hidden="true"></div>
       <div class="tour-top">
         <p class="eyebrow">Virtueller Rundgang</p>
-        <p class="tour-hint" id="tourHint">Scrollen oder Film abspielen ↓</p>
+        <p class="tour-hint" id="tourHint">Erlebe den Laden mit deinen eigenen Augen</p>
       </div>
-      <button type="button" class="tour-play" id="tourPlay" data-tour-play><i aria-hidden="true"></i><span>Rundgang abspielen</span></button>
-      <div class="tour-caption" id="tourCaption" aria-live="polite">
-        <span class="tour-num" id="tourNum">01</span>
-        <h3 id="tourTitle">Willkommen</h3>
-        <p id="tourText"></p>
+      <canvas class="tour-map" id="tourMap" width="96" height="152" aria-label="Grundriss mit deiner Position"></canvas>
+      <div class="tour-pins" id="tourPins"></div>
+      <div class="tour-start" id="tourStart">
+        <h3>Komm rein.</h3>
+        <p>Flieg von der Hauptstraße durch die Tür und lauf selbst durch den Salon – Plätze, Kasse, Lounge. Tippe auf die goldenen Punkte für Infos.</p>
+        <button type="button" class="btn btn-gold" id="tourEnter">▶ Laden betreten</button>
       </div>
-      <nav class="tour-dots" id="tourDots" aria-label="Stationen des Rundgangs"></nav>
-      <div class="tour-progress"><span id="tourBar"></span></div>
+      <div class="spot-card" id="spotCard" hidden></div>
+      <nav class="tour-nav" id="tourNav" hidden aria-label="Stationen">
+        <button type="button" id="spotPrev" aria-label="Vorherige Station">‹</button>
+        <span id="spotName">Rundgang</span>
+        <button type="button" id="spotNext" aria-label="Nächste Station">›</button>
+      </nav>
     </div>
     <!-- Ohne WebGL: einfache Bildstrecke -->
     <div class="tour-fallback" id="tourFallback" hidden></div>
