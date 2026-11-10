@@ -572,3 +572,17 @@ $$(".section-head, .service, .barber, .contact-card, .booking-card, .rating-card
     bot(`Das kann ich dir leider nicht sicher beantworten – ruf am besten kurz an: ${C.phoneDisplay}.`);
   }
 })();
+
+/* ---------------- Film (MP4) ---------------- */
+(function filmVideo() {
+  const v = $("#filmVideo"); if (!v) return;
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("[data-film]")) return;
+    const tall = matchMedia("(orientation: portrait)").matches;
+    const src = `film/axaray-rundgang-${tall ? "9x16" : "16x9"}.mp4`;
+    if (!v.src.endsWith(src)) v.src = src;
+    $("#filmModal").classList.toggle("tall", tall);
+    openModal("#filmModal"); v.play().catch(() => {});
+  });
+  new MutationObserver(() => $("#filmModal").hidden && v.pause()).observe($("#filmModal"), { attributes: true });
+})();

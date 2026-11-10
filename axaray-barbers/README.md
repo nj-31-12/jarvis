@@ -1,4 +1,4 @@
-# Axaray Barbers – Webseite (Entwurf v2)
+# Axaray Barbers – Webseite (Entwurf v3)
 
 Barbershop in Hösbach, Hauptstraße 118 – ca. 10 Min. von Aschaffenburg. Statische Seite, läuft ohne Server.
 
@@ -8,7 +8,8 @@ Barbershop in Hösbach, Hauptstraße 118 – ca. 10 Min. von Aschaffenburg. Stat
 | `index.html`, `styles.css` | Seite und Design |
 | `config.js` | **Alles, was der Salon anpasst**: Preise, Barber, Rundgang, Bewertungen, Zahlung |
 | `ax3d.js` | 3D-Bausteine (Waben-Lichtdecke, Barber-Pole) + Startszene |
-| `tour.js` | Virtueller Rundgang (Scrollen = durch den Salon laufen) |
+| `tour.js` | Film-Rundgang: der Salon als 3D-Raum mit echtem Grundriss, Kameraflug + echte Fotos |
+| `film/` | Der Rundgang als MP4 (16:9 und 9:16 fürs Handy/Instagram) |
 | `head.js` | 3D Style-Studio mit realistischem Kopf, Haaren und Bart |
 | `app.js` | Team, Bewertungen, Buchung, Bezahlung, Kundenkonto, Anfahrt, Sprachassistent |
 | `img/`, `model/` | Salon-Fotos und 3D-Kopf |
@@ -18,7 +19,11 @@ Lokal ansehen: `python3 -m http.server` im Ordner, dann http://localhost:8000
 
 ## Bereiche
 1. **Start** – 3D-Waben-Lichtdecke, Barber-Pole, Live-Öffnungsstatus
-2. **Rundgang** – beim Scrollen läuft man durch einen 3D-Gang: Schaufenster → Empfang & Lounge → Produkte → Lichtdecke → Stühle → die **3 Plätze**
+2. **Film-Rundgang** – der Laden als 3D-Raum (5 × 7,5 m) mit dem echten Grundriss:
+   vorne links Eingang, links die 3 Plätze mit Spiegeln, hinten links Waschplatz, hinten rechts Kasse,
+   rechts am Fenster die Lounge, Waben-Lichtdecke über allem. Die Kamera fliegt beim Scrollen
+   (oder per „Film abspielen“) durch den Raum, an jeder Station blendet das echte Foto ein.
+   Grundriss-Karte oben links zeigt, wo man gerade steht.
 3. **Barber** – 3 Plätze mit Barber, Spezialgebiet und 3 Signature-Cuts (als 3D-Vorschau; antippen öffnet den Look im Studio)
 4. **Style-Studio** – realistischer 3D-Kopf: Gesichtsform, Hautton, 8 Haarschnitte, 6 Fade-Stufen, 6 Bärte, Farben. ★ zeigt, was zur Gesichtsform passt. „Diesen Look buchen“ übernimmt alles in die Buchung
 5. **Bewertungen** – Übersichtskarte (5,0 · 34), Laufband in 2 Reihen (antippen = anhalten), Umschalter auf Rasteransicht
@@ -37,3 +42,7 @@ Lokal ansehen: `python3 -m http.server` im Ordner, dann http://localhost:8000
 
 ## Lizenz 3D-Kopf
 „Lee Perry-Smith“ Head Scan von Infinite-Realities, CC BY 3.0 – Namensnennung steht im Footer.
+
+## Film neu rendern
+Server starten (`python3 -m http.server 8080`), dann im Browser `ROOM.renderAt(p, breite, höhe)` für p = 0…1
+aufrufen und die Bilder mit ffmpeg zu einem MP4 zusammensetzen (so wurden die Dateien in `film/` erzeugt).
