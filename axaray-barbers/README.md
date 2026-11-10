@@ -1,34 +1,39 @@
-# Axaray Barbers – Webseite (Entwurf v1)
+# Axaray Barbers – Webseite (Entwurf v2)
 
-Barbershop in Hösbach, Hauptstraße 118. Statische Seite, läuft ohne Server.
+Barbershop in Hösbach, Hauptstraße 118 – ca. 10 Min. von Aschaffenburg. Statische Seite, läuft ohne Server.
 
 ## Dateien
-- `index.html`, `styles.css`, `app.js`, `img/` – die Webseite
-- `vorschau.html` – alles in einer Datei (zum schnellen Ansehen/Teilen)
+| Datei | Inhalt |
+|---|---|
+| `index.html`, `styles.css` | Seite und Design |
+| `config.js` | **Alles, was der Salon anpasst**: Preise, Barber, Rundgang, Bewertungen, Zahlung |
+| `ax3d.js` | 3D-Bausteine (Waben-Lichtdecke, Barber-Pole) + Startszene |
+| `tour.js` | Virtueller Rundgang (Scrollen = durch den Salon laufen) |
+| `head.js` | 3D Style-Studio mit realistischem Kopf, Haaren und Bart |
+| `app.js` | Team, Bewertungen, Buchung, Bezahlung, Kundenkonto, Anfahrt, Sprachassistent |
+| `img/`, `model/` | Salon-Fotos und 3D-Kopf |
+| `vorschau.html` | Alles in einer Datei – neu bauen mit `python3 build-vorschau.py` |
 
 Lokal ansehen: `python3 -m http.server` im Ordner, dann http://localhost:8000
 
-## Was drin ist
-- **3D-Hero** (Three.js): Waben-Lichtdecke wie im Salon, drehende Barber-Pole, Goldstaub, reagiert auf Maus und Handy-Neigung
-- **Google-Bewertungen als Laufband** – Antippen hält an, nochmal antippen läuft weiter (Desktop: Hover hält an)
-- **Live-Status** „Jetzt geöffnet / schließt bald / öffnet morgen um …“
-- **Terminanfrage** in 4 Schritten (Leistung → Tag → Uhrzeit → Daten), mit Kalender-Download (.ics)
-- **Sprachassistent** (Mikrofon-Button): versteht z. B. „Skin Fade morgen um 15 Uhr“ und füllt das Formular aus; beantwortet Preise, Öffnungszeiten, Parken, Adresse
-- Mobile Leiste „Anrufen / Termin“, Google-Maps erst nach Klick (DSGVO), SEO-Daten (schema.org HairSalon)
+## Bereiche
+1. **Start** – 3D-Waben-Lichtdecke, Barber-Pole, Live-Öffnungsstatus
+2. **Rundgang** – beim Scrollen läuft man durch einen 3D-Gang: Schaufenster → Empfang & Lounge → Produkte → Lichtdecke → Stühle → die **3 Plätze**
+3. **Barber** – 3 Plätze mit Barber, Spezialgebiet und 3 Signature-Cuts (als 3D-Vorschau; antippen öffnet den Look im Studio)
+4. **Style-Studio** – realistischer 3D-Kopf: Gesichtsform, Hautton, 8 Haarschnitte, 6 Fade-Stufen, 6 Bärte, Farben. ★ zeigt, was zur Gesichtsform passt. „Diesen Look buchen“ übernimmt alles in die Buchung
+5. **Bewertungen** – Übersichtskarte (5,0 · 34), Laufband in 2 Reihen (antippen = anhalten), Umschalter auf Rasteransicht
+6. **Buchung & Bezahlung** – Leistung, Barber, Tag, Uhrzeit, Daten, Zahlung (PayPal, Apple Pay, Google Pay, Karte, Klarna oder vor Ort), Kalender-Export
+7. **Kundenkonto** – Daten, bevorzugte Zahlung, gemerkter Look, Terminliste
+8. **Anfahrt** – Adler-Ansicht (Luftbild im Hochformat), Navi per Google Maps oder Apple Karten, „~10 Min. von Aschaffenburg“
 
-## Vor dem Livegang ausfüllen (oben in `app.js` → `CONFIG`)
-| Feld | Wofür |
-|---|---|
-| `services` | Echte Preise und Dauer (aktuell Platzhalter) |
-| `reviews` | Echte Google-Rezensionen (aktuell Platzhalter) |
-| `whatsapp` / `email` | Wohin Terminanfragen gehen |
-| `bookingWebhook` | Automatik: z. B. n8n/Make → Google Kalender + SMS-Bestätigung |
-| `reviewUrl` | Direkter Google-Bewertungslink (aus dem Google-Unternehmensprofil) |
-| `draft: false` | Entwurf-Hinweis ausblenden |
+## Vor dem Livegang (in `config.js`)
+- `barbers` – echte Namen, Fotos, Spezialgebiete
+- `services` – echte Preise
+- `reviews` – echte Google-Rezensionen; `reviewWriteUrl` aus dem Google-Unternehmensprofil
+- **Zahlung live schalten:** Stripe-Konto des Salons anlegen (deckt PayPal, Apple Pay, Google Pay, Karte, Klarna ab), pro Leistung einen Payment-Link in `payment.paymentLinks` eintragen, `payment.demo: false`
+- **Automatik:** `bookingWebhook` (z. B. n8n/Make) → Google Kalender, SMS-Bestätigung, Bewertungsbitte nach dem Besuch
+- Kundenkonto live: Login per E-Mail-Code (z. B. Supabase) – aktuell Demo, Daten bleiben auf dem Gerät
+- Impressum, Datenschutz, AGB/Storno verlinken; `draft: false`
 
-Außerdem: Impressum und Datenschutz verlinken (Pflicht in Deutschland).
-
-## Nächste Schritte (Stufe 2)
-- Echter Telefon-Voice-Agent (z. B. Vapi oder Retell), der Anrufe annimmt und Termine einträgt – der Web-Assistent ist die Vorstufe
-- Buchungen in einen Kalender mit echten Verfügbarkeiten (Cal.com oder eigener Webhook)
-- Nach dem Besuch automatische SMS/WhatsApp mit Bitte um Google-Bewertung – an **alle** Kunden, nicht nur zufriedene (Google verbietet das Filtern)
+## Lizenz 3D-Kopf
+„Lee Perry-Smith“ Head Scan von Infinite-Realities, CC BY 3.0 – Namensnennung steht im Footer.
