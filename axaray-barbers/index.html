@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Axaray Barbers · Barber in Hösbach</title>
+<meta name="description" content="Axaray Barbers – Fades, Bart & Styling in Hösbach, Hauptstraße 118. Nur ca. 10 Minuten von Aschaffenburg. Online Termin buchen und bezahlen. 5,0 Sterne bei Google.">
+<meta name="theme-color" content="#0b0b0d">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/favicon.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Axaray">
+<meta name="format-detection" content="telephone=no">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HairSalon",
+  "name": "Axaray Barbers",
+  "description": "Barbershop für Fades, Bartpflege und Styling in Hösbach bei Aschaffenburg.",
+  "telephone": "+49 6021 6246351",
+  "address": {"@type": "PostalAddress", "streetAddress": "Hauptstraße 118", "postalCode": "63768", "addressLocality": "Hösbach", "addressCountry": "DE"},
+  "geo": {"@type": "GeoCoordinates", "latitude": 50.003465, "longitude": 9.20394},
+  "areaServed": ["Hösbach", "Aschaffenburg", "Goldbach", "Haibach"],
+  "paymentAccepted": "Bar, PayPal, Apple Pay, Google Pay, Kreditkarte, Klarna",
+  "openingHoursSpecification": [
+    {"@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday"], "opens": "09:00", "closes": "18:30"},
+    {"@type": "OpeningHoursSpecification", "dayOfWeek": "Saturday", "opens": "09:00", "closes": "16:30"}
+  ],
+  "sameAs": ["https://www.instagram.com/axary_barbers/", "https://www.instagram.com/axaray_barbershop/"]
+}
+</script>
+</head>
+<body>
+
+<div class="draft-bar" id="draftBar" hidden>
+  Vorschau für Axaray Barbers – Barber-Namen, Preise und Bewertungstexte trägt der Salon noch ein. Zahlung im Demo-Modus.
+</div>
+
+<header class="nav" id="nav">
+  <a href="#top" class="logo" aria-label="Axaray Barbers – Start">
+    <span class="logo-mark">A</span><span class="logo-text">AXARAY <small>BARBERS</small></span>
+  </a>
+  <nav class="nav-links" id="navLinks">
+    <a href="#rundgang">Rundgang</a>
+    <a href="#team">Barber</a>
+    <a href="#studio">Style-Studio</a>
+    <a href="#bewertungen">Bewertungen</a>
+    <a href="#kontakt">Anfahrt</a>
+    <button type="button" class="nav-account" data-open-account>Mein Konto</button>
+    <button type="button" class="nav-account" data-share>📤 Seite teilen</button>
+    <a href="#termin" class="btn btn-gold btn-sm">Termin buchen</a>
+  </nav>
+  <a class="nav-call" href="tel:+4960216246351" aria-label="Anrufen">📞</a>
+  <button class="burger" id="burger" aria-label="Menü öffnen" aria-expanded="false"><span></span><span></span></button>
+</header>
+
+<main id="top">
+
+  <!-- HERO -->
+  <section class="hero">
+    <canvas id="scene" aria-hidden="true"></canvas>
+    <div class="hero-content">
+      <a class="rating-chip" href="#bewertungen"><span class="stars">★★★★★</span> <strong>5,0</strong> · 34 Google-Bewertungen</a>
+      <h1>AXARAY<span>BARBERS</span></h1>
+      <p class="tagline">Fades · Beard · Styling<br>Immer fresh. Immer präzise.</p>
+      <div class="status" id="openStatus"><span class="dot"></span><span class="txt">…</span></div>
+      <div class="hero-cta">
+        <a href="#termin" class="btn btn-gold">Termin buchen & bezahlen</a>
+        <button type="button" class="btn btn-ghost" data-tour-play>▶ Rundgang ansehen</button>
+      </div>
+      <p class="walkin">🚗 Nur ca. 10 Min. von Aschaffenburg · ✂ Ohne Termin willkommen</p>
+    </div>
+    <a href="#rundgang" class="scroll-hint" aria-label="Zum Rundgang"><span></span></a>
+  </section>
+
+  <!-- RUNDGANG: scrollen = durch den Salon laufen -->
+  <section class="tour" id="rundgang" aria-label="Virtueller Rundgang durch den Salon">
+    <div class="tour-sticky">
+      <canvas id="tourCanvas" aria-label="Begehbarer 3D-Salon"></canvas>
+      <div class="film-bars" aria-hidden="true"></div>
+      <div class="tour-top">
+        <p class="eyebrow">Virtueller Rundgang</p>
+        <p class="tour-hint" id="tourHint">Erlebe den Laden mit deinen eigenen Augen</p>
+      </div>
+      <canvas class="tour-map" id="tourMap" width="96" height="152" aria-label="Grundriss mit deiner Position"></canvas>
+      <div class="tour-pins" id="tourPins"></div>
+      <div class="tour-start" id="tourStart">
+        <h3>Komm rein.</h3>
+        <p>Flieg von der Hauptstraße durch die Tür und lauf selbst durch den Salon – Plätze, Kasse, Lounge. Tippe auf die goldenen Punkte für Infos.</p>
+        <button type="button" class="btn btn-gold" id="tourEnter">▶ Laden betreten</button>
+      </div>
+      <div class="spot-card" id="spotCard" hidden></div>
+      <nav class="tour-nav" id="tourNav" hidden aria-label="Stationen">
+        <button type="button" id="spotPrev" aria-label="Vorherige Station">‹</button>
+        <span id="spotName">Rundgang</span>
+        <button type="button" id="spotNext" aria-label="Nächste Station">›</button>
+      </nav>
+    </div>
+    <!-- Ohne WebGL: einfache Bildstrecke -->
+    <div class="tour-fallback" id="tourFallback" hidden></div>
+  </section>
+
+  <!-- TEAM -->
+  <section class="team" id="team">
+    <div class="section-head">
+      <p class="eyebrow">Drei Plätze · Drei Barber</p>
+      <h2>Wähle deinen Barber</h2>
+      <p class="muted">Jeder Platz hat seinen Spezialisten. Tippe auf einen Barber für seine Signature-Cuts.</p>
+    </div>
+    <div class="team-grid" id="teamGrid"></div>
+  </section>
+
+  <!-- STYLE-STUDIO 3D-Kopf -->
+  <section class="studio" id="studio">
+    <div class="section-head">
+      <p class="eyebrow">3D Style-Studio</p>
+      <h2>Finde deinen Look</h2>
+      <p class="muted">Stell deinen Kopf ein – Gesichtsform, Hautton, Bart – und probier Haarschnitte aus. Wir zeigen dir, was zu dir passt.</p>
+    </div>
+    <div class="studio-wrap">
+      <div class="studio-stage">
+        <canvas id="headCanvas" aria-label="3D-Kopf, ziehen zum Drehen"></canvas>
+        <div class="stage-hint">↔ Ziehen zum Drehen</div>
+        <div class="stage-look" id="lookName">—</div>
+      </div>
+      <div class="studio-panel">
+        <div class="tabs" role="tablist">
+          <button role="tab" class="tab" aria-selected="true" data-tab="face">Gesicht</button>
+          <button role="tab" class="tab" aria-selected="false" data-tab="hair">Haare</button>
+          <button role="tab" class="tab" aria-selected="false" data-tab="beard">Bart</button>
+        </div>
+        <div class="tab-body" data-body="face">
+          <h4>Gesichtsform</h4>
+          <div class="opt-row" id="optShape"></div>
+          <h4>Hautton</h4>
+          <div class="swatches" id="optSkin"></div>
+        </div>
+        <div class="tab-body" data-body="hair" hidden>
+          <h4>Haarschnitt <span class="muted small">★ = passt zu deiner Gesichtsform</span></h4>
+          <div class="style-grid" id="optStyle"></div>
+          <h4>Fade an den Seiten</h4>
+          <div class="opt-row" id="optFade"></div>
+          <h4>Haarfarbe</h4>
+          <div class="swatches" id="optHairColor"></div>
+        </div>
+        <div class="tab-body" data-body="beard" hidden>
+          <h4>Bart <span class="muted small">★ = passt zu deiner Gesichtsform</span></h4>
+          <div class="opt-row" id="optBeard"></div>
+          <h4>Bartfarbe</h4>
+          <div class="swatches" id="optBeardColor"></div>
+        </div>
+        <div class="look-card">
+          <div>
+            <p class="small muted">Dein Look</p>
+            <p class="look-title" id="lookTitle">—</p>
+            <p class="small" id="lookTip"></p>
+          </div>
+          <div class="look-actions">
+            <button class="btn btn-gold" id="bookLook" type="button">Diesen Look buchen</button>
+            <button class="btn btn-ghost btn-sm" id="saveLook" type="button">Im Konto merken</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEISTUNGEN -->
+  <section class="services" id="leistungen">
+    <div class="section-head">
+      <p class="eyebrow">Leistungen & Preise</p>
+      <h2>Handwerk mit Präzision</h2>
+    </div>
+    <div class="service-grid" id="serviceGrid"></div>
+  </section>
+
+  <!-- BEWERTUNGEN -->
+  <section class="reviews photo-bg" id="bewertungen" style="--bg-img:url('img/empfang.jpg')">
+    <div class="section-head">
+      <p class="eyebrow">Was Kunden sagen</p>
+      <h2>Bewertungen</h2>
+    </div>
+    <div class="reviews-layout">
+      <aside class="rating-card">
+        <div class="g-logo" aria-hidden="true">G</div>
+        <p class="rating-big">5,0</p>
+        <p class="stars big">★★★★★</p>
+        <p class="muted">34 Bewertungen auf Google</p>
+        <ul class="rating-facts">
+          <li>✓ Echte, verifizierte Google-Rezensionen</li>
+          <li>✓ Ohne Termin oder online gebucht</li>
+          <li>✓ Neueröffnung in Hösbach</li>
+        </ul>
+        <a class="btn btn-gold btn-block" id="reviewWrite" target="_blank" rel="noopener">Jetzt bewerten</a>
+        <a class="btn btn-ghost btn-block" id="reviewAll" target="_blank" rel="noopener">Alle auf Google lesen</a>
+      </aside>
+      <div class="reviews-main">
+        <div class="view-toggle" role="tablist" aria-label="Ansicht">
+          <button type="button" role="tab" aria-selected="true" data-view="marquee">Laufband</button>
+          <button type="button" role="tab" aria-selected="false" data-view="grid">Übersicht</button>
+        </div>
+        <div class="marquee" id="marquee" role="region" aria-label="Kundenbewertungen, antippen zum Anhalten" tabindex="0">
+          <div class="marquee-row" data-row="0"><div class="marquee-track"></div></div>
+          <div class="marquee-row reverse" data-row="1"><div class="marquee-track"></div></div>
+          <div class="marquee-paused" aria-hidden="true">❚❚ Angehalten – nochmal tippen zum Weiterlaufen</div>
+        </div>
+        <div class="review-grid" id="reviewGrid" hidden></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TERMIN + BEZAHLUNG -->
+  <section class="booking photo-bg" id="termin" style="--bg-img:url('img/goldstuhl.jpg')">
+    <div class="section-head">
+      <p class="eyebrow">Online buchen</p>
+      <h2>Termin buchen & bezahlen</h2>
+      <p class="muted">Von zu Hause in 1 Minute: Leistung, Barber, Uhrzeit wählen – und gleich bezahlen mit PayPal, Apple Pay & Co. Oder einfach vor Ort.</p>
+    </div>
+
+    <form class="booking-card" id="bookingForm" novalidate>
+      <div class="account-strip" id="accountStrip"></div>
+      <ol class="steps">
+        <li class="step"><h3><span>1</span> Leistung</h3><div class="chips" id="serviceChips"></div></li>
+        <li class="step"><h3><span>2</span> Barber</h3><div class="chips" id="barberChips"></div></li>
+        <li class="step"><h3><span>3</span> Tag</h3><div class="days" id="dayPicker"></div></li>
+        <li class="step"><h3><span>4</span> Uhrzeit</h3><div class="slots" id="slotPicker"><p class="muted small">Bitte erst einen Tag wählen.</p></div></li>
+        <li class="step"><h3><span>5</span> Deine Daten</h3>
+          <div class="fields">
+            <label>Name<input name="name" autocomplete="name" required></label>
+            <label>Telefon<input name="phone" type="tel" autocomplete="tel" required></label>
+            <label class="full">E-Mail (für Bestätigung & Beleg)<input name="email" type="email" autocomplete="email"></label>
+            <label class="full">Wunsch (optional)<input name="note" placeholder="z. B. Skin Fade, Bart kurz"></label>
+          </div>
+        </li>
+        <li class="step"><h3><span>6</span> Bezahlung</h3>
+          <div class="pay-mode" id="payMode">
+            <label class="pay-option"><input type="radio" name="paymode" value="online" checked><span><b>Jetzt online bezahlen</b><small>Termin ist sofort fest gebucht</small></span></label>
+            <label class="pay-option"><input type="radio" name="paymode" value="vorort"><span><b>Vor Ort bezahlen</b><small>Bar oder Karte im Salon</small></span></label>
+          </div>
+          <div class="pay-methods" id="payMethods"></div>
+        </li>
+      </ol>
+      <div class="summary" id="summary">Noch nichts gewählt.</div>
+      <p class="form-error" id="formError" role="alert"></p>
+      <button class="btn btn-gold btn-block" type="submit" id="submitBtn">Termin buchen</button>
+      <p class="muted small center">🔒 Sichere Zahlung über zertifizierten Zahlungsanbieter. Kostenlos stornierbar bis 24 h vorher.</p>
+    </form>
+
+    <div class="booking-done" id="bookingDone" hidden>
+      <div class="check">✓</div>
+      <h3 id="doneTitle">Termin gebucht!</h3>
+      <p id="doneText"></p>
+      <div class="done-actions" id="doneActions"></div>
+      <button class="btn btn-link" id="newBooking" type="button">Neue Buchung</button>
+    </div>
+  </section>
+
+  <!-- KONTAKT & ANFAHRT -->
+  <section class="contact" id="kontakt">
+    <div class="section-head">
+      <p class="eyebrow">Kontakt & Anfahrt</p>
+      <h2>Mitten in Hösbach</h2>
+      <p class="muted">Nur ca. <b class="gold">10 Minuten mit dem Auto von Aschaffenburg</b> – direkt an der Hauptstraße, Parkplätze gegenüber.</p>
+    </div>
+    <div class="contact-layout">
+      <div class="aerial">
+        <div class="aerial-frame" id="aerialFrame" style="--bg-img:url('img/schaufenster.jpg')">
+          <div class="aerial-consent">
+            <p class="eyebrow">Adler-Ansicht</p>
+            <p>Luftbild des Salons und der Parkplätze</p>
+            <button class="btn btn-gold btn-sm" id="mapConsent" type="button">Luftbild laden</button>
+            <p class="muted small">Lädt Inhalte von Google Maps.</p>
+          </div>
+        </div>
+        <p class="muted small center">Zum Navigieren App wählen:</p>
+        <div class="nav-apps">
+          <a class="app-btn" id="navGoogle" target="_blank" rel="noopener">
+            <span class="app-ico gmaps" aria-hidden="true"></span><span><b>Google Maps</b><small>Route starten</small></span>
+          </a>
+          <a class="app-btn" id="navApple" target="_blank" rel="noopener">
+            <span class="app-ico amaps" aria-hidden="true"></span><span><b>Apple Karten</b><small>Route starten</small></span>
+          </a>
+        </div>
+      </div>
+      <div class="contact-cards">
+        <div class="contact-card">
+          <h3>Adresse</h3>
+          <p>Hauptstraße 118<br>63768 Hösbach</p>
+          <div class="drive">
+            <div><b>~10 Min.</b><small>von Aschaffenburg</small></div>
+            <div><b>1,50 €</b><small>2 Std. Parken gegenüber</small></div>
+          </div>
+        </div>
+        <div class="contact-card">
+          <h3>Öffnungszeiten</h3>
+          <table class="hours" id="hoursTable"></table>
+        </div>
+        <div class="contact-card">
+          <h3>Direkt</h3>
+          <p><a href="tel:+4960216246351">📞 06021 6246351</a></p>
+          <p><a href="https://www.instagram.com/axary_barbers/" target="_blank" rel="noopener">📷 Instagram @axary_barbers</a></p>
+          <p class="muted small">Ohne Termin vorbeikommen ist jederzeit möglich.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <p>© <span id="year"></span> Axaray Barbers · Hösbach bei Aschaffenburg</p>
+  <p class="pay-logos">PayPal · Apple Pay · Google Pay · Visa · Mastercard · Klarna · Bar</p>
+  <p class="tiny">3D-Kopf: „Lee Perry-Smith“ von Infinite-Realities, CC BY 3.0</p>
+  <p><a href="#">Impressum</a> · <a href="#">Datenschutz</a> · <a href="#">AGB & Storno</a></p>
+</footer>
+
+<!-- App-Leiste (Handy) -->
+<nav class="tabbar" id="tabbar" aria-label="App-Navigation">
+  <a href="#top" data-tab="top"><span>🏠</span>Start</a>
+  <a href="#rundgang" data-tab="rundgang"><span>🚪</span>Laden</a>
+  <a href="#termin" data-tab="termin" class="tab-main"><span>📅</span>Termin</a>
+  <a href="#studio" data-tab="studio"><span>💈</span>Look</a>
+  <button type="button" data-open-account data-tab="konto"><span>👤</span>Konto<i class="tab-badge" id="tabBadge" hidden></i></button>
+</nav>
+
+<!-- Als App installieren -->
+<div class="install-bar" id="installBar" hidden>
+  <img src="icons/icon-192.png" alt="" width="44" height="44">
+  <div><b>Axaray als App</b><span id="installText">Auf den Home-Bildschirm – mit Stempelkarte & 1-Tipp-Buchung.</span></div>
+  <button type="button" class="btn btn-gold btn-sm" id="installBtn">Installieren</button>
+  <button type="button" class="install-x" id="installX" aria-label="Schließen">×</button>
+</div>
+
+<!-- KONTO -->
+<div class="modal" id="accountModal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="accTitle">
+    <button class="modal-close" data-close aria-label="Schließen">×</button>
+    <div id="accountBody"></div>
+  </div>
+</div>
+
+<!-- ZAHLUNG -->
+<div class="modal" id="payModal" hidden>
+  <div class="modal-card pay-sheet" role="dialog" aria-modal="true" aria-labelledby="payTitle">
+    <button class="modal-close" data-close aria-label="Schließen">×</button>
+    <div id="payBody"></div>
+  </div>
+</div>
+
+<!-- SPRACHASSISTENT -->
+<button class="va-fab" id="vaFab" aria-label="Sprachassistent öffnen">
+  <span class="va-ring"></span>
+  <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>
+</button>
+<div class="va-panel" id="vaPanel" role="dialog" aria-label="Axaray Sprachassistent" hidden>
+  <div class="va-head">
+    <div><strong>Axaray Assistent</strong><span class="muted small">Sprich oder schreib mir</span></div>
+    <button class="va-close" id="vaClose" aria-label="Schließen">×</button>
+  </div>
+  <div class="va-log" id="vaLog" aria-live="polite"></div>
+  <div class="va-quick" id="vaQuick"></div>
+  <form class="va-input" id="vaForm">
+    <button type="button" class="va-mic" id="vaMic" aria-label="Spracheingabe starten">🎙</button>
+    <input id="vaText" placeholder="z. B. „Fade morgen um 15 Uhr“" autocomplete="off">
+    <button type="submit" class="va-send" aria-label="Senden">➤</button>
+  </form>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="config.js"></script>
+<script src="ax3d.js"></script>
+<script src="head.js"></script>
+<script src="app.js"></script>
+<script src="tour.js"></script>
+</body>
+</html>
