@@ -6,6 +6,14 @@
 <title>Axaray Barbers · Barber in Hösbach</title>
 <meta name="description" content="Axaray Barbers – Fades, Bart & Styling in Hösbach, Hauptstraße 118. Nur ca. 10 Minuten von Aschaffenburg. Online Termin buchen und bezahlen. 5,0 Sterne bei Google.">
 <meta name="theme-color" content="#0b0b0d">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/favicon.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Axaray">
+<meta name="format-detection" content="telephone=no">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -46,8 +54,10 @@
     <a href="#bewertungen">Bewertungen</a>
     <a href="#kontakt">Anfahrt</a>
     <button type="button" class="nav-account" data-open-account>Mein Konto</button>
+    <button type="button" class="nav-account" data-share>📤 Seite teilen</button>
     <a href="#termin" class="btn btn-gold btn-sm">Termin buchen</a>
   </nav>
+  <a class="nav-call" href="tel:+4960216246351" aria-label="Anrufen">📞</a>
   <button class="burger" id="burger" aria-label="Menü öffnen" aria-expanded="false"><span></span><span></span></button>
 </header>
 
@@ -309,9 +319,21 @@
   <p><a href="#">Impressum</a> · <a href="#">Datenschutz</a> · <a href="#">AGB & Storno</a></p>
 </footer>
 
-<div class="sticky-cta">
-  <a href="tel:+4960216246351">📞 Anrufen</a>
-  <a href="#termin" class="gold">Termin buchen</a>
+<!-- App-Leiste (Handy) -->
+<nav class="tabbar" id="tabbar" aria-label="App-Navigation">
+  <a href="#top" data-tab="top"><span>🏠</span>Start</a>
+  <a href="#rundgang" data-tab="rundgang"><span>🚪</span>Laden</a>
+  <a href="#termin" data-tab="termin" class="tab-main"><span>📅</span>Termin</a>
+  <a href="#studio" data-tab="studio"><span>💈</span>Look</a>
+  <button type="button" data-open-account data-tab="konto"><span>👤</span>Konto<i class="tab-badge" id="tabBadge" hidden></i></button>
+</nav>
+
+<!-- Als App installieren -->
+<div class="install-bar" id="installBar" hidden>
+  <img src="icons/icon-192.png" alt="" width="44" height="44">
+  <div><b>Axaray als App</b><span id="installText">Auf den Home-Bildschirm – mit Stempelkarte & 1-Tipp-Buchung.</span></div>
+  <button type="button" class="btn btn-gold btn-sm" id="installBtn">Installieren</button>
+  <button type="button" class="install-x" id="installX" aria-label="Schließen">×</button>
 </div>
 
 <!-- KONTO -->

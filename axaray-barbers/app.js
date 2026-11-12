@@ -786,3 +786,62 @@ const geo = (() => {
 
   return { enable, disable, enabled, simulate: (kind) => check(kind === "inside" ? 5 : 180, true) };
 })();
+
+/* ---------------- Handy-Web-App: App-Leiste, Installation, Offline ---------------- */
+(function mobileApp() {
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  document.body.classList.toggle("standalone", standalone);
+  const buzz = (ms = 8) => { try { navigator.vibrate && navigator.vibrate(ms); } catch {} };
+
+  // Offline-Speicher (nur über https/http, nicht als einzelne Datei)
+  if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register("sw.js").catch(() => {});
+
+  // App-Leiste: aktiven Bereich markieren
+  const tabs = $$("#tabbar [data-tab]");
+  const setActive = (id) => tabs.forEach((t) => t.classList.toggle("on", t.dataset.tab === id));
+  const watch = [["top", ".hero"], ["rundgang", "#rundgang"], ["studio", "#studio"], ["termin", "#termin"]];
+  const seen = new Map();
+  const tio = new IntersectionObserver((es) => {
+    es.forEach((e) => seen.set(e.target, e.intersectionRatio));
+    let best = null, bestR = 0;
+    watch.forEach(([id, sel]) => { const r = seen.get($(sel)) || 0; if (r > bestR) { bestR = r; best = id; } });
+    if (best) setActive(best);
+  }, { threshold: [0, .25, .5, .75, 1] });
+  watch.forEach(([, sel]) => $(sel) && tio.observe($(sel)));
+  tabs.forEach((t) => t.addEventListener("click", () => buzz()));
+
+  // Stempel-Zähler am Konto-Tab
+  const badge = () => { const a = account.get(), b = $("#tabBadge"); b.hidden = !a; if (a) b.textContent = a.stamps || 0; };
+  badge(); setInterval(badge, 2000);
+
+  // Direkt-Links aus dem App-Icon (z. B. „Stempelkarte“)
+  const q = new URLSearchParams(location.search);
+  if (q.get("konto")) setTimeout(() => account.open(), 400);
+
+  // „Als App installieren“
+  const bar = $("#installBar"), KEY = "axaray-install-dismissed";
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  let deferred = null;
+  const dismissed = () => { try { return Date.now() - (+localStorage.getItem(KEY) || 0) < 7 * 864e5; } catch { return false; } };
+  const show = () => { if (!standalone && !dismissed() && innerWidth < 900) bar.hidden = false; };
+  const hide = () => { bar.hidden = true; try { localStorage.setItem(KEY, Date.now()); } catch {} };
+  addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferred = e; setTimeout(show, 6000); });
+  if (isIOS && !standalone) {
+    $("#installText").innerHTML = "Tippe unten auf <b>Teilen</b> <span class=\"ios-share\">⬆</span> und dann <b>„Zum Home-Bildschirm“</b>.";
+    $("#installBtn").textContent = "Verstanden";
+    setTimeout(show, 8000);
+  }
+  $("#installBtn").addEventListener("click", async () => {
+    if (deferred) { deferred.prompt(); await deferred.userChoice.catch(() => {}); deferred = null; }
+    hide();
+  });
+  $("#installX").addEventListener("click", hide);
+  addEventListener("appinstalled", () => (bar.hidden = true));
+
+  // Seite teilen (Teilen-Menü am Handy, sonst Link kopieren)
+  document.addEventListener("click", async (e) => {
+    if (!e.target.closest("[data-share]")) return;
+    const data = { title: "Axaray Barbers Hösbach", text: "Fades, Bart & Styling in Hösbach – online Termin buchen und Stempel sammeln:", url: location.href.split("?")[0].split("#")[0] };
+    try { if (navigator.share) await navigator.share(data); else { await navigator.clipboard.writeText(data.url); alert("Link kopiert!"); } } catch {}
+  });
+})();
