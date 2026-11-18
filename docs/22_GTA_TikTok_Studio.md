@@ -50,3 +50,7 @@ Die Daten liegen in `data/gta_studio.db`. Unter *Einstellungen* kannst du jederz
 ```bash
 python3 -m unittest tests.test_gta_studio -v
 ```
+
+## Online-Version (ohne Installation)
+Die Datei `gta_studio/artifact/gta-tiktok-studio.html` ist dieselbe Plattform als Seite auf claude.ai. Sie läuft im Browser, auch am Handy, und speichert alles in der Datenbank der Seite. Lesen und ändern können nur du und Personen, die du als Bearbeiter freigibst.
+Zusätzlich gibt es dort „Mit Claude schreiben“: Claude formuliert das Skript aus deinen Fakten. Das verbraucht dein normales Claude-Kontingent.

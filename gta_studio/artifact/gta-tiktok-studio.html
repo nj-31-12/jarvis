@@ -1,0 +1,937 @@
+<title>GTA TikTok Studio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: sticky Kopfzeile mit Countdown, Tab-Leiste, darunter Arbeitsflächen in 1–2 Spalten. Bewusst nur dunkel (Vice-City-Nacht). */
+:root {
+  --bg: #0f0c17; --panel: #18142a; --panel2: #221c38; --line: #312a4d;
+  --fg: #f3effc; --muted: #a29bbd; --pink: #ff4fa3; --sun: #ffa53d; --sea: #34e2cb;
+  --ok: #45dc8a; --warn: #ffd15c; --bad: #ff6371; --ink: #1a0c14;
+  --f-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-body: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--fg); }
+body { font: 15px/1.5 var(--f-body); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: #1d0f26; }
+.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 1360px; margin: 0 auto; }
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: linear-gradient(100deg, #2a0f3a, #3c1531 55%, #3d2614); border-bottom: 1px solid var(--line); }
+header .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; padding-block: 12px 0; }
+.brand { font: 800 21px/1.1 var(--f-display); letter-spacing: .2px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.brand .mark { color: var(--pink); }
+.brand small { font: 500 13px var(--f-body); color: var(--muted); }
+.count { font: 500 13px var(--f-mono); color: var(--sun); }
+nav.tabs { display: flex; gap: 2px; overflow-x: auto; padding-block: 8px 0; scrollbar-width: none; width: 100%; }
+nav.tabs button { background: none; border: 0; color: var(--muted); padding: 9px 12px 11px; font: 600 14px var(--f-body); cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; }
+nav.tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--pink); }
+nav.tabs button:hover { color: var(--fg); }
+main { padding-block: 18px 40px; }
+.view[hidden] { display: none; }
+.notice { background: #3a2d12; color: var(--warn); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 14px; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+@media (max-width: 860px) { .grid2 { grid-template-columns: minmax(0, 1fr); } .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+h2 { font: 700 18px/1.2 var(--f-display); margin: 0; text-wrap: balance; }
+h3 { font: 600 12px var(--f-body); color: var(--muted); text-transform: uppercase; letter-spacing: .7px; margin: 6px 0 0; }
+p { margin: 0; }
+.muted { color: var(--muted); font-size: 14px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+.kpi b { display: block; font: 800 26px/1.1 var(--f-display); font-variant-numeric: tabular-nums; }
+.kpi span { font-size: 13px; color: var(--muted); }
+.form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 12px; }
+.form .wide { grid-column: 1 / -1; }
+@media (max-width: 480px) { .form { grid-template-columns: minmax(0, 1fr); } }
+label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); min-width: 0; }
+input, select, textarea { width: 100%; background: var(--panel2); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 15px var(--f-body); }
+textarea { resize: vertical; line-height: 1.45; }
+input[type="checkbox"] { width: auto; accent-color: var(--pink); }
+input[type="range"] { padding: 0; accent-color: var(--pink); }
+:focus-visible { outline: 2px solid var(--sea); outline-offset: 1px; }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+button { font: 600 14px var(--f-body); color: var(--fg); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+button:hover { border-color: var(--pink); }
+button:disabled { opacity: .45; cursor: default; }
+button.go { background: linear-gradient(90deg, var(--pink), var(--sun)); color: var(--ink); border: 0; }
+button.sm { padding: 4px 9px; font-size: 12px; }
+button.del:hover { color: var(--bad); border-color: var(--bad); }
+button.del.armed { color: var(--ink); background: var(--bad); border-color: var(--bad); }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font: 700 11.5px var(--f-body); white-space: nowrap; letter-spacing: .2px; }
+.s-bestaetigt { background: #123d2a; color: var(--ok); } .s-geruecht { background: #3d3412; color: var(--warn); }
+.s-leak { background: #42133a; color: var(--pink); } .s-spekulation { background: #2b2645; color: #c0b1ff; }
+.s-widerlegt { background: #3d1218; color: var(--bad); text-decoration: line-through; }
+.v-idee, .v-skript { background: #2b2645; color: #c0b1ff; } .v-aufgenommen, .v-geschnitten { background: #3d3412; color: var(--warn); }
+.v-geplant { background: #0f343b; color: var(--sea); } .v-gepostet { background: #123d2a; color: var(--ok); }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.row:last-child { border-bottom: 0; }
+.row > div:first-child { min-width: 0; }
+.row .t { font-weight: 600; overflow-wrap: anywhere; } .row .s { font-size: 13px; color: var(--muted); }
+.row .btns { flex-shrink: 0; justify-content: flex-end; }
+.hot { color: var(--sun); font-weight: 700; }
+.list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.check { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.check label { flex-direction: row; align-items: flex-start; gap: 8px; color: var(--fg); font-size: 14px; }
+.picker { display: flex; flex-direction: column; gap: 6px; max-height: 270px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+.picker label { flex-direction: row; gap: 8px; align-items: flex-start; color: var(--fg); font-size: 14px; }
+.pipe { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; text-align: center; }
+.pipe div { background: var(--panel2); border-radius: 8px; padding: 10px 2px; }
+.pipe b { display: block; font: 800 22px var(--f-display); font-variant-numeric: tabular-nums; } .pipe span { font-size: 11.5px; color: var(--muted); }
+@media (max-width: 480px) { .pipe { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; color: var(--muted); } .meta b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.warn { color: var(--warn); margin: 0; padding-left: 18px; font-size: 14px; }
+.hook { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--panel2); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+.hook small { color: var(--muted); white-space: nowrap; }
+.tbl { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12.5px; padding: 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; font-variant-numeric: tabular-nums; }
+.bar { height: 7px; width: 90px; background: var(--panel2); border-radius: 4px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--pink), var(--sun)); }
+.ai-out { white-space: pre-wrap; background: var(--panel2); border-radius: 8px; padding: 10px; font-size: 14px; }
+.day h4 { margin: 10px 0 2px; font: 700 15px var(--f-display); color: var(--sun); }
+.empty { color: var(--muted); font-size: 14px; padding: 6px 0; }
+.toast { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--panel2); border: 1px solid var(--pink); border-radius: 10px; padding: 10px 14px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; max-width: calc(100% - 32px); }
+.toast.on { opacity: 1; }
+.prompter { position: fixed; inset: 0; z-index: 30; background: #000; display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); }
+.prompter[hidden] { display: none; }
+.prompter .bar2 { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px)); background: #111; }
+.prompter .bar2 label { flex-direction: row; align-items: center; gap: 6px; } .prompter .bar2 input { width: 80px; }
+.ptext { flex: 1; overflow: hidden; padding: 40vh 8vw; font: 700 44px/1.35 var(--f-body); color: #fff; }
+details summary { cursor: pointer; color: var(--sea); font-weight: 600; font-size: 14px; }
+a { color: var(--sea); }
+.mono { font-family: var(--f-mono); font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><span><span class="mark">▶</span> GTA TikTok Studio</span><small id="handle"></small></div>
+    <div class="count" id="countdown"></div>
+    <nav class="tabs" id="tabs" role="tablist">
+      <button role="tab" data-v="cockpit" aria-selected="true">Cockpit</button>
+      <button role="tab" data-v="facts">Faktenbank</button>
+      <button role="tab" data-v="studio">Skript-Studio</button>
+      <button role="tab" data-v="voice">Voice-over</button>
+      <button role="tab" data-v="plan">Planung</button>
+      <button role="tab" data-v="stats">Analyse</button>
+      <button role="tab" data-v="rivals">Konkurrenz</button>
+      <button role="tab" data-v="setup">Einstellungen</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="note" class="notice" hidden></div>
+
+  <!-- Cockpit -->
+  <section class="view" id="v-cockpit">
+    <div class="kpis" id="kpis"></div>
+    <div class="grid2">
+      <div class="card"><h2>Als Nächstes posten</h2><div id="upcoming"></div></div>
+      <div class="stack">
+        <div class="card"><h2>Was die Zahlen sagen</h2><ul class="list" id="insights"></ul></div>
+        <div class="card"><h2>Zahlen fehlen bei</h2><div id="needm"></div></div>
+      </div>
+    </div>
+    <div class="grid2" style="margin-top:16px">
+      <div class="card"><h2>Produktion</h2><div class="pipe" id="pipe"></div></div>
+      <div class="card"><h2>Checkliste vor jedem Post</h2><ul class="check" id="checklist"></ul></div>
+    </div>
+  </section>
+
+  <!-- Fakten -->
+  <section class="view" id="v-facts" hidden>
+    <div class="grid2">
+      <div class="card">
+        <h2 id="fact-h">Neue Info</h2>
+        <p class="muted">Insider-Ruf entsteht durch Infos, die stimmen. Jede Info bekommt einen Status und eine Quelle.</p>
+        <form id="fact-form" class="form">
+          <input type="hidden" id="f-id" name="id">
+          <label class="wide">Titel<input id="f-title" name="title" required maxlength="200" placeholder="z. B. Alligatoren in den Grassrivers"></label>
+          <label>Kategorie<select id="f-cat" name="category"><option value="allgemein">allgemein</option><option value="release">Release</option><option value="karte">Karte/Orte</option><option value="story">Story/Figuren</option><option value="gameplay">Gameplay</option><option value="easter-egg">Easter Egg</option><option value="leak">Leak</option></select></label>
+          <label>Status<select id="f-status" name="status"></select></label>
+          <label class="wide">Detail, so wie du es sagen würdest<textarea id="f-detail" name="detail" rows="3"></textarea></label>
+          <label>Quelle<input id="f-src" name="source_name" placeholder="z. B. Rockstar Newswire"></label>
+          <label>Link<input id="f-url" name="source_url" placeholder="https://…"></label>
+          <div class="btns wide"><button class="go" type="submit">Speichern</button><button type="button" id="f-reset">Leeren</button></div>
+        </form>
+      </div>
+      <div class="card">
+        <div class="btns"><input id="f-q" placeholder="Suchen…" aria-label="Fakten suchen"><select id="f-filter" aria-label="Nach Status filtern"><option value="">alle Status</option></select></div>
+        <div id="fact-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Studio -->
+  <section class="view" id="v-studio" hidden>
+    <div class="grid2">
+      <div class="stack">
+        <div class="card">
+          <h2>1. Thema und Fakten</h2>
+          <form id="s-form" class="form">
+            <label class="wide">Thema<input id="s-topic" required placeholder="z. B. die Leonida Keys"></label>
+            <label>Serie<select id="s-series"></select></label>
+            <label>Hook-Typ<select id="s-hook"></select></label>
+            <label>Ziel-Länge (Sek.)<input id="s-secs" type="number" min="15" max="180" value="60"></label>
+            <label>Teil Nr.<input id="s-part" type="number" min="1" value="1"></label>
+            <div class="wide"><label>Fakten (bis zu 3 für 60 Sekunden)</label><div class="picker" id="picker"></div></div>
+            <div class="btns wide">
+              <button class="go" type="submit">Skript bauen</button>
+              <button type="button" id="s-ai">Mit Claude schreiben</button>
+              <button type="button" id="s-hooks">Hook-Varianten</button>
+            </div>
+          </form>
+          <div id="ai-box" hidden><h3>Claude schreibt</h3><div class="ai-out" id="ai-out"></div><div class="btns" style="margin-top:8px"><button class="sm" id="ai-stop">Stopp</button></div></div>
+          <div id="hooks" class="stack" style="gap:6px"></div>
+        </div>
+        <div class="card"><h2>Ideen aus ungenutzten Fakten</h2><div id="ideas"></div></div>
+      </div>
+      <div class="card">
+        <h2>2. Skript</h2>
+        <div class="meta" id="s-meta"></div>
+        <form id="v-form" class="form">
+          <input type="hidden" id="v-id">
+          <label class="wide">Titel<input id="v-title" required></label>
+          <label>Serie<input id="v-series"></label>
+          <label>Geplant für<input id="v-planned" type="datetime-local"></label>
+          <label class="wide">Hook, die ersten 2 Sekunden<input id="v-hook"></label>
+          <label class="wide">Sprechtext <span id="v-dur" class="mono"></span><textarea id="v-script" rows="11"></textarea></label>
+          <label class="wide">Einblendungen<textarea id="v-onscreen" rows="4"></textarea></label>
+          <label class="wide">Caption<textarea id="v-caption" rows="3"></textarea></label>
+          <label class="wide">Hashtags<input id="v-tags"></label>
+          <label>Status<select id="v-status"></select></label>
+          <label>Ziel-Länge (Sek.)<input id="v-secs" type="number" min="15" max="180" value="60"></label>
+          <label class="wide">TikTok-Link, nach dem Posten<input id="v-url" placeholder="https://www.tiktok.com/@…"></label>
+          <label class="wide">Notizen: Clips, Szenen, B-Roll<textarea id="v-notes" rows="2"></textarea></label>
+          <div class="btns wide">
+            <button class="go" type="submit">Im Plan speichern</button>
+            <button type="button" id="v-new">Neues Video</button>
+            <button type="button" id="v-voice">Zum Voice-over</button>
+            <button type="button" id="v-srt">Untertitel kopieren</button>
+            <button type="button" id="v-cap">Caption kopieren</button>
+          </div>
+        </form>
+        <ul class="warn" id="s-warn"></ul>
+        <div id="s-src"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Voice -->
+  <section class="view" id="v-voice" hidden>
+    <div class="grid2">
+      <div class="card">
+        <h2>Probehören</h2>
+        <p class="muted">Hör dir das Skript vorgelesen an, um Tempo und Länge zu prüfen. Einsprechen solltest du es selbst: deine Stimme baut mehr Bindung auf als eine Computerstimme.</p>
+        <label>Text<textarea id="t-text" rows="10"></textarea></label>
+        <div class="form">
+          <label>Stimme<select id="t-voice"></select></label>
+          <label>Tempo <span id="t-rate-v" class="mono">1.1</span><input id="t-rate" type="range" min="0.7" max="1.5" step="0.05" value="1.1"></label>
+        </div>
+        <div class="btns"><button class="go" id="t-play">▶ Vorlesen</button><button id="t-stop">■ Stopp</button><button id="t-prompter">Teleprompter</button></div>
+        <p class="muted" id="t-info"></p>
+      </div>
+      <div class="card">
+        <h2>Selbst einsprechen</h2>
+        <ol class="list">
+          <li>Öffne den <b>Teleprompter</b> auf dem Laptop oder Tablet. Die Laufzeit passt sich der Skriptlänge an.</li>
+          <li>Nimm mit dem Handy auf: CapCut → Audio → Voiceover direkt über dein Video, oder mit der Sprachmemo-App.</li>
+          <li>Kopier im Skript-Studio die Untertitel und füge sie in CapCut ein, oder nutz die Auto-Untertitel von CapCut.</li>
+        </ol>
+        <h3>Tipps</h3>
+        <ul class="list">
+          <li>Mikro oder Handy 15–20 cm vom Mund. Ein Raum mit Kleidung und Decken klingt weniger hallig.</li>
+          <li>Den ersten Satz mit Energie und eher schnell sprechen. Pausen schneidest du später raus.</li>
+          <li>Lieber drei kurze Takes als einen langen.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+  <div class="prompter" id="prompter" hidden>
+    <div class="bar2"><button class="go" id="p-start">Start</button><button id="p-close">Schließen</button>
+      <label>Sek. <input id="p-secs" type="number" min="10" max="300" value="60"></label><label>Größe <input id="p-size" type="range" min="26" max="80" value="44"></label></div>
+    <div class="ptext" id="p-text"></div>
+  </div>
+
+  <!-- Planung -->
+  <section class="view" id="v-plan" hidden>
+    <div class="card" style="margin-bottom:16px">
+      <h2>Postingplan</h2>
+      <form id="p-form" class="form">
+        <label>Start<input id="pl-start" type="date"></label>
+        <label>Tage<input id="pl-days" type="number" min="1" max="60" value="7"></label>
+        <label>Posts pro Tag<input id="pl-ppd" type="number" min="1" max="6" value="2"></label>
+        <label>Uhrzeiten<input id="pl-times" value="12:30,18:00,21:00"></label>
+        <div class="btns wide"><button type="button" id="pl-preview">Vorschau</button><button class="go" type="submit" id="pl-create">Als Videos anlegen</button></div>
+      </form>
+      <div id="pl-out"></div>
+    </div>
+    <div class="card">
+      <div class="btns" style="justify-content:space-between;align-items:center"><h2>Alle Videos</h2><select id="cal-filter" aria-label="Nach Status filtern"><option value="">alle</option></select></div>
+      <div id="calendar"></div>
+    </div>
+  </section>
+
+  <!-- Analyse -->
+  <section class="view" id="v-stats" hidden>
+    <div class="kpis" id="a-kpis"></div>
+    <div class="grid2">
+      <div class="card">
+        <h2>Zahlen eintragen</h2>
+        <p class="muted">Aus TikTok Studio → Video → Analysen. Am besten nach 1 Stunde, 24 Stunden und 7 Tagen.</p>
+        <form id="m-form" class="form">
+          <label class="wide">Video<select id="m-video" required></select></label>
+          <label>Nach Stunden<select id="m-hours"><option>1</option><option selected>24</option><option>72</option><option>168</option></select></label>
+          <label>Aufrufe<input id="m-views" type="number" min="0"></label>
+          <label>Likes<input id="m-likes" type="number" min="0"></label>
+          <label>Kommentare<input id="m-comments" type="number" min="0"></label>
+          <label>Geteilt<input id="m-shares" type="number" min="0"></label>
+          <label>Gespeichert<input id="m-saves" type="number" min="0"></label>
+          <label>Ø Wiedergabe (Sek.)<input id="m-avg" type="number" min="0" step="0.1"></label>
+          <label>Komplett angesehen (%)<input id="m-comp" type="number" min="0" max="100" step="0.1"></label>
+          <label>Neue Follower<input id="m-fol" type="number" min="0"></label>
+          <div class="btns wide"><button class="go" type="submit">Eintragen</button></div>
+        </form>
+        <details><summary>CSV einfügen</summary>
+          <div class="stack" style="gap:8px;margin-top:8px">
+            <p class="muted">Spalten wie „Titel, Aufrufe, Likes, Kommentare, Geteilt, Gespeichert“, deutsch oder englisch. Getrennt durch Komma, Semikolon oder Tab.</p>
+            <textarea id="csv" rows="5" placeholder="Titel;Aufrufe;Likes;Kommentare;Geteilt;Gespeichert"></textarea>
+            <label class="check"><span style="display:flex;gap:8px;align-items:center;color:var(--fg)"><input type="checkbox" id="csv-new"> fehlende Videos anlegen</span></label>
+            <div class="btns"><button id="csv-go">Importieren</button><span class="muted" id="csv-res"></span></div>
+          </div>
+        </details>
+      </div>
+      <div class="card"><h2>Erkenntnisse</h2><ul class="list" id="a-ins"></ul><h3>Nach Serie</h3><div id="a-series"></div><h3>Nach Hook-Typ</h3><div id="a-hooks"></div></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>Alle gemessenen Videos</h2><div id="a-table"></div></div>
+  </section>
+
+  <!-- Konkurrenz -->
+  <section class="view" id="v-rivals" hidden>
+    <div class="grid2">
+      <div class="stack">
+        <div class="card">
+          <h2>Account beobachten</h2>
+          <form id="c-form" class="form">
+            <label>Handle<input id="c-handle" required placeholder="@account"></label>
+            <label>Follower<input id="c-fol" type="number" min="0"></label>
+            <label>Sprache<select id="c-lang"><option>de</option><option>en</option><option>andere</option></select></label>
+            <label>Schwerpunkt<input id="c-focus" placeholder="News, Leaks, Guides…"></label>
+            <label class="wide">Notizen: Stil, Stärken, Lücken<textarea id="c-notes" rows="2"></textarea></label>
+            <div class="btns wide"><button class="go" type="submit">Hinzufügen</button></div>
+          </form>
+        </div>
+        <div class="card">
+          <h2>Video eines Konkurrenten</h2>
+          <form id="cp-form" class="form">
+            <label class="wide">Account<select id="cp-comp" required></select></label>
+            <label class="wide">Titel oder Thema<input id="cp-title" required></label>
+            <label class="wide">Hook, erster Satz<input id="cp-hook"></label>
+            <label>Format<select id="cp-format"></select></label>
+            <label>Aufrufe<input id="cp-views" type="number" min="0"></label>
+            <label>Likes<input id="cp-likes" type="number" min="0"></label>
+            <label>Kommentare<input id="cp-comments" type="number" min="0"></label>
+            <label>Geteilt<input id="cp-shares" type="number" min="0"></label>
+            <label>Gepostet am<input id="cp-date" type="date"></label>
+            <label class="wide">Link<input id="cp-url" placeholder="https://www.tiktok.com/@…"></label>
+            <div class="btns wide"><button class="go" type="submit">Speichern</button></div>
+          </form>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card"><h2>Beobachtete Accounts</h2><div id="c-list"></div></div>
+        <div class="card"><h2>Formate über ihrem Schnitt</h2><div id="c-formats"></div></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Ausreißer</h2>
+      <p class="muted">Ausreißer = Aufrufe ÷ Median des Accounts. Ab 3× lohnt es sich, Hook und Aufbau genau anzuschauen und das Thema mit eigenen Fakten und eigenem Gameplay neu zu machen.</p>
+      <div id="c-top"></div>
+    </div>
+  </section>
+
+  <!-- Einstellungen -->
+  <section class="view" id="v-setup" hidden>
+    <div class="card">
+      <h2>Einstellungen</h2>
+      <form id="set-form" class="form">
+        <label>Dein Handle<input id="set-handle"></label>
+        <label>Release-Datum<input id="set-release" type="date"></label>
+        <label>Posts pro Tag<input id="set-ppd" type="number" min="1" max="6"></label>
+        <label>Uhrzeiten<input id="set-times"></label>
+        <label>Sprechtempo (Wörter pro Minute)<input id="set-wpm" type="number" min="90" max="220"></label>
+        <div class="btns wide"><button class="go" type="submit">Speichern</button><button type="button" id="set-export">Sicherung speichern (JSON)</button></div>
+      </form>
+      <p class="muted">Das Studio postet nichts selbst. Automatisches Hochladen ginge nur über TikToks freigegebene Content Posting API mit eigenem Entwicklerkonto und einer Prüfung durch TikTok.</p>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+"use strict";
+/* ============================================================ Grundlagen */
+const $ = (s) => document.querySelector(s);
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (n) => Number(n || 0).toLocaleString("de-DE");
+const safeUrl = (u) => (/^https?:\/\//i.test(u || "") ? u : "");
+const num = (id) => { const v = $(id).value; return v === "" ? 0 : Math.max(0, Number(v) || 0); };
+const nowIso = () => new Date().toISOString().slice(0, 19);
+const localIso = (d = new Date()) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("on"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("on"), 2800); }
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); toast("Kopiert"); }
+  catch { const ta = document.createElement("textarea"); ta.value = text; document.body.append(ta); ta.select(); try { document.execCommand("copy"); toast("Kopiert"); } catch { toast("Bitte manuell kopieren"); } ta.remove(); }
+}
+const median = (a) => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const r2 = (x) => Math.round(x * 100) / 100;
+const rate = (p, w) => (w ? r2((p / w) * 100) : 0);
+
+/* ============================================================ Inhalte */
+const FACT_STATUS = { bestaetigt: "offiziell bestätigt", geruecht: "Gerücht", leak: "Leak (nicht offiziell)", spekulation: "Spekulation", widerlegt: "widerlegt" };
+const VIDEO_STATUS = ["idee", "skript", "aufgenommen", "geschnitten", "geplant", "gepostet"];
+const CAUTION = { geruecht: " Wichtig: Das ist bisher nur ein Gerücht, nicht offiziell bestätigt.", leak: " Wichtig: Das stammt aus einem Leak und ist nicht offiziell bestätigt.", spekulation: " Wichtig: Das ist Spekulation, nicht offiziell bestätigt." };
+const HOOKS = {
+  keiner_bemerkt: ["Das hat in GTA 6 fast niemand bemerkt: {t}", "Neugier"],
+  stopp_scroll: ["Stopp. Bevor du GTA 6 startest, musst du das über {t} wissen.", "Dringlichkeit"],
+  zahl: ["3 Dinge über {t}, die dir Rockstar nicht erzählt.", "Liste"],
+  fakt_fake: ["Fakt oder Fake: {t}?", "Interaktion"],
+  fehler: ["Mach diesen Fehler nicht in GTA 6: {t}.", "Verlustangst"],
+  vergleich: ["GTA 5 gegen GTA 6: {t}. Der Unterschied ist krass.", "Vergleich"],
+  geheimnis: ["Rockstar hat {t} versteckt, und so findest du es.", "Neugier"],
+  zeit: ["{t} in 60 Sekunden erklärt.", "Versprechen"],
+  frage: ["Wusstest du das über {t}?", "Neugier"],
+  leak_realitaet: ["Der Leak von 2022 gegen das fertige Spiel: {t}.", "Vergleich"],
+  unpopular: ["Unpopuläre Meinung: {t}.", "Reibung"],
+  pov: ["POV: Du entdeckst als Erster {t}.", "Identifikation"],
+  warnung: ["Lösch nicht deinen Spielstand, bevor du {t} gesehen hast.", "Verlustangst"],
+  rang: ["Ich habe {t} gerankt. Platz 1 überrascht dich.", "Liste"],
+  detail_zoom: ["Schau genau hin. Bei {t} steckt ein Detail, das alles verändert.", "Neugier"],
+  challenge: ["Ich habe {t} getestet, damit du es nicht musst.", "Versprechen"],
+};
+const SERIES = {
+  "Was keiner weiß": "Ein überprüfter, wenig bekannter Fakt pro Video. Kern-Serie für den Insider-Ruf.",
+  "Leak vs. Realität": "Was 2022 geleakt wurde und was im fertigen Spiel steckt.",
+  "Easter Eggs": "Versteckte Details und Anspielungen. Ab Release jeden Tag neues Material.",
+  "Leonida-Guide": "Orte, Regionen, Routen: Vice City, Keys, Grassrivers, Port Gellhorn, Ambrosia, Mount Kalaga.",
+  "Fakt oder Fake": "Gerüchte prüfen, Zuschauer stimmen in den Kommentaren ab.",
+  "Einsteiger-Tipps": "Konkrete Tipps für die ersten Stunden. Wird oft gespeichert.",
+  "Lucia & Jason": "Story, Figuren, Theorien. Spoiler nur mit Warnung.",
+  "GTA 6 News": "Updates, Patches, Online-Modus, PC-Version.",
+};
+const SERIES_TAGS = { "Was keiner weiß": ["#gta6facts", "#gaming"], "Leak vs. Realität": ["#gta6leak", "#rockstargames"], "Easter Eggs": ["#eastereggs", "#gta6secrets"], "Leonida-Guide": ["#vicecity", "#leonida"], "Fakt oder Fake": ["#gta6theory", "#gaming"], "Einsteiger-Tipps": ["#gta6tips", "#gamingtipps"], "Lucia & Jason": ["#lucia", "#jason"], "GTA 6 News": ["#gta6news", "#gamingnews"] };
+const CTAS = ["Folg mir, morgen kommt Teil {n}.", "Schreib in die Kommentare, ob du das wusstest.", "Speicher das Video, damit du es im Spiel findest.", "Schick das deinem GTA-Kumpel.", "Fakt oder Fake? Stimm in den Kommentaren ab."];
+const CHECKLIST = ["Hook in den ersten 1–2 Sekunden gesprochen und als Text eingeblendet", "Bewegung oder Schnitt in den ersten 3 Sekunden", "Untertitel eingebrannt, viele schauen ohne Ton", "Gerüchte und Leaks im Video als solche gekennzeichnet", "Keine Spoiler im Hook, Titelbild oder in den ersten Sekunden", "Eigenes Gameplay oder eigener Kommentar, nicht nur fremde Clips", "Hochkant 9:16, 1080×1920, kein Wasserzeichen anderer Apps", "Caption: Hook-Zeile, eine Frage für Kommentare, 3–5 Hashtags", "Ende führt zum Anfang zurück oder kündigt Teil 2 an", "Nach 1 h, 24 h und 7 Tagen Zahlen eintragen"];
+const LAUNCH = [["GTA 6 News", "Countdown: Was du vor dem Start wissen musst", "stopp_scroll"], ["Einsteiger-Tipps", "Die ersten 10 Minuten in GTA 6", "fehler"], ["Was keiner weiß", "Details aus dem Intro", "keiner_bemerkt"], ["Leak vs. Realität", "Was vom Leak 2022 übrig geblieben ist", "leak_realitaet"], ["Easter Eggs", "Das erste Easter Egg in Vice City", "geheimnis"], ["Leonida-Guide", "Die Karte im Überblick", "zeit"], ["Fakt oder Fake", "Das größte Gerücht vor Release", "fakt_fake"], ["Lucia & Jason", "Wer ist wirklich Lucia?", "frage"], ["Einsteiger-Tipps", "Schnell Geld verdienen am Anfang", "challenge"], ["Easter Eggs", "Anspielungen auf GTA Vice City", "detail_zoom"], ["Was keiner weiß", "GTA 5 gegen GTA 6: Physik und Details", "vergleich"], ["Was keiner weiß", "Kleine Details, die Rockstar versteckt hat", "zahl"]];
+const FORMATS = ["News", "Leak-Analyse", "Easter Egg", "Guide/Tipps", "Theorie", "Vergleich", "Reaktion", "Meme/Comedy", "Gameplay-Clip", "Liste/Ranking"];
+const DEFAULT_SETTINGS = { account_handle: "@dein.gta.account", posts_per_day: 2, post_times: "12:30,18:00,21:00", release_date: "2026-11-19", voice_wpm: 150 };
+
+const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+const words = (t) => (t || "").match(/\S+/g) || [];
+const wpm = () => Math.max(60, Math.min(260, Number(S.settings.voice_wpm) || 150));
+const speechSecs = (t) => Math.round((words(t).length / wpm()) * 600) / 10;
+const short = (t, n) => { const w = words(t); return w.slice(0, n).join(" ") + (w.length > n ? "…" : ""); };
+const hookText = (type, topic) => cap((HOOKS[type] || HOOKS.keiner_bemerkt)[0].replace("{t}", (topic || "dieses Detail").trim().replace(/[.?!]+$/, "")));
+function hashtags(series, topic) {
+  const t = (topic || "").toLowerCase(), tags = ["#gta6", "#gtavi", "#gta", ...(SERIES_TAGS[series] || ["#gaming"])];
+  if (t.includes("vice")) tags.push("#vicecity"); if (t.includes("lucia")) tags.push("#lucia"); if (t.includes("online")) tags.push("#gtaonline");
+  return [...new Set(tags)].slice(0, 5).join(" ");
+}
+
+function buildScript({ topic, facts, hookType, series, target, part }) {
+  facts = facts.filter((f) => f.status !== "widerlegt").slice(0, 3);
+  topic = (topic || "").trim() || (facts[0] ? facts[0].title : "GTA 6");
+  const hook = hookText(hookType, topic);
+  const beats = [{ label: "Hook", text: hook, os: short(hook, 6) }, { label: "Kontext", text: "Ich bin heute in Leonida unterwegs und zeig dir, was die meisten übersehen.", os: "Pass auf 👀" }];
+  const ord = ["Erstens", "Zweitens", "Drittens"];
+  if (facts.length) facts.forEach((f, i) => beats.push({ label: "Punkt " + (i + 1), text: `${ord[i]}: ${f.detail || f.title}${CAUTION[f.status] || ""}`, os: short(f.title, 7) }));
+  else for (let i = 0; i < 3; i++) beats.push({ label: "Punkt " + (i + 1), text: `${ord[i]}: [Hier kommt dein ${i + 1}. überprüfter Fakt zu ${topic}]`, os: "Punkt " + (i + 1) });
+  beats.push({ label: "Payoff", text: "Und genau deshalb lohnt es sich, in GTA 6 öfter mal anzuhalten und genau hinzuschauen.", os: "Das ändert alles" });
+  beats.push({ label: "CTA", text: CTAS[(part - 1) % CTAS.length].replace("{n}", part + 1), os: "Folgen für Teil " + (part + 1) });
+  let t = 0; for (const b of beats) { b.start = t; t += Math.max(1.5, speechSecs(b.text)); }
+  const script = beats.map((b) => b.text).join("\n\n"), secs = speechSecs(script);
+  const warn = [];
+  if (secs > target * 1.1) warn.push(`Zu lang: ca. ${Math.round(secs)} s gesprochen, Ziel ${target} s. Kürze einen Punkt.`);
+  else if (secs < target * 0.6) warn.push(`Eher kurz: ca. ${Math.round(secs)} s. Das ist okay, wenn dadurch mehr Leute bis zum Ende schauen.`);
+  if (!facts.length) warn.push("Keine Fakten ausgewählt. Ersetze die Platzhalter durch geprüfte Infos.");
+  if (facts.some((f) => CAUTION[f.status])) warn.push("Enthält unbestätigte Infos. Im Video und in der Caption klar als Gerücht oder Leak kennzeichnen.");
+  if (facts.some((f) => !f.source_name && !f.source_url)) warn.push("Mindestens ein Fakt hat keine Quelle.");
+  return {
+    title: `${series}: ${topic}`.slice(0, 120), series, hook_type: hookType, hook, script, secs, target, words: words(script).length,
+    onscreen: beats.map((b) => `[${Math.round(b.start)}s] ${b.os}`).join("\n"),
+    caption: `${short(hook, 12)}\n\n${series} | GTA 6 ${topic}\nWelches Detail kanntest du noch nicht? 👇`,
+    hashtags: hashtags(series, topic), fact_ids: facts.map((f) => f.id), facts, warn,
+  };
+}
+function toSrt(script) {
+  const w = words(script); if (!w.length) return "";
+  const spw = 60 / wpm(), out = []; let t = 0;
+  const ts = (s) => { let ms = Math.round(s * 1000); const h = Math.floor(ms / 3600000); ms -= h * 3600000; const m = Math.floor(ms / 60000); ms -= m * 60000; const sec = Math.floor(ms / 1000); ms -= sec * 1000; return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")},${String(ms).padStart(3, "0")}`; };
+  for (let i = 0, n = 1; i < w.length; i += 4, n++) { const c = w.slice(i, i + 4); out.push(n, `${ts(t)} --> ${ts(t + c.length * spw)}`, c.join(" "), ""); t += c.length * spw; }
+  return out.join("\n");
+}
+function planSlots(start, days, ppd, times) {
+  const d0 = new Date((start || localIso().slice(0, 10)) + "T12:00"); days = Math.max(1, Math.min(60, days)); ppd = Math.max(1, Math.min(6, ppd));
+  let tt = (times || "").split(",").map((s) => s.trim()).filter((s) => /^\d{1,2}:\d{2}$/.test(s)).map((s) => s.padStart(5, "0"));
+  if (!tt.length) tt = ["18:00"]; while (tt.length < ppd) tt.push(tt[tt.length - 1]);
+  const out = []; let n = 0;
+  for (let d = 0; d < days; d++) {
+    const day = new Date(d0); day.setDate(d0.getDate() + d); const iso = localIso(day).slice(0, 10);
+    for (let p = 0; p < ppd; p++) { const [series, topic, hook] = LAUNCH[n++ % LAUNCH.length]; out.push({ date: iso, time: tt[p], planned_at: `${iso}T${tt[p]}`, series, topic, hook_type: hook, hook: hookText(hook, topic), wd: day.toLocaleDateString("de-DE", { weekday: "short" }) }); }
+  }
+  return out;
+}
+function ideas() {
+  const byCat = { leak: ["Leak vs. Realität", "leak_realitaet"], karte: ["Leonida-Guide", "zeit"], story: ["Lucia & Jason", "frage"], "easter-egg": ["Easter Eggs", "geheimnis"], gameplay: ["Einsteiger-Tipps", "fehler"], release: ["GTA 6 News", "stopp_scroll"] };
+  return S.facts.filter((f) => f.status !== "widerlegt").sort((a, b) => (a.used_count || 0) - (b.used_count || 0)).slice(0, 8).map((f) => {
+    let [series, hook] = byCat[f.category] || ["Was keiner weiß", "keiner_bemerkt"];
+    if (f.status === "geruecht" || f.status === "spekulation") [series, hook] = ["Fakt oder Fake", "fakt_fake"];
+    return { fact: f, series, hook, text: hookText(hook, f.title) };
+  });
+}
+
+/* ============================================================ Auswertung */
+function kpis(m, secs = 60) {
+  const v = m.views || 0, inter = (m.likes || 0) + (m.comments || 0) + (m.shares || 0) + (m.saves || 0);
+  return { views: v, er: rate(inter, v), share: rate(m.shares || 0, v), save: rate(m.saves || 0, v), comp: m.completion_pct || 0, follow: rate(m.followers_gained || 0, v), watch: secs ? Math.round(Math.min((m.avg_watch_seconds || 0) / secs, 2) * 1000) / 10 : 0 };
+}
+function latest() {
+  const out = {};
+  for (const m of S.metrics) { const c = out[m.video_id]; if (!c || (m.hours_after || 0) > (c.hours_after || 0) || ((m.hours_after || 0) === (c.hours_after || 0) && (m.created_at || "") > (c.created_at || ""))) out[m.video_id] = m; }
+  return out;
+}
+function group(rows, key) {
+  const g = {}; for (const r of rows) (g[r[key]] ||= []).push(r);
+  return Object.entries(g).map(([name, it]) => ({ name, n: it.length, med: median(it.map((i) => i.views)), er: r2(it.reduce((s, i) => s + i.er, 0) / it.length), comp: Math.round((it.reduce((s, i) => s + i.comp, 0) / it.length) * 10) / 10, share: r2(it.reduce((s, i) => s + i.share, 0) / it.length) })).sort((a, b) => b.med - a.med);
+}
+function overview() {
+  const L = latest(), rows = [];
+  for (const v of S.videos) { const m = L[v.id]; if (m) rows.push({ id: v.id, title: v.title, series: v.series || "–", hook: v.hook_type || "–", hours: m.hours_after || 0, fol: m.followers_gained || 0, ...kpis(m, v.target_seconds || 60) }); }
+  const med = median(rows.map((r) => r.views)); rows.forEach((r) => (r.out = med ? r2(r.views / med) : 0)); rows.sort((a, b) => b.views - a.views);
+  const n = rows.length;
+  const total = { n, views: rows.reduce((s, r) => s + r.views, 0), med, fol: rows.reduce((s, r) => s + r.fol, 0), er: n ? r2(rows.reduce((s, r) => s + r.er, 0) / n) : 0, comp: n ? Math.round((rows.reduce((s, r) => s + r.comp, 0) / n) * 10) / 10 : 0 };
+  return { total, rows, bySeries: group(rows, "series"), byHook: group(rows, "hook"), tips: tips(rows) };
+}
+function tips(rows) {
+  if (!rows.length) return ["Noch keine Zahlen. Trag nach 24 Stunden die ersten Werte aus TikTok Studio ein."];
+  const t = [];
+  if (rows.length < 5) t.push(`Erst ${rows.length} Video(s) gemessen. Ab etwa 10 Videos werden Muster belastbar.`);
+  if (rows[0].out >= 2) t.push(`„${rows[0].title}“ hat ${rows[0].out.toLocaleString("de-DE")}× deinen Median. Mach 2–3 Folgevideos mit dem gleichen Hook-Typ (${hookLabel(rows[0].hook)}).`);
+  const low = rows.filter((r) => r.comp && r.comp < 25);
+  if (low.length) t.push(`${low.length} Video(s) unter 25 % komplett angesehen: Hook schneller, ersten Satz kürzen, den ersten Punkt früher bringen.`);
+  const sh = [...rows].sort((a, b) => b.share - a.share)[0]; if (sh.share >= 1) t.push(`Teilen-Quote ${sh.share.toLocaleString("de-DE")} % bei „${sh.title}“. Dieses Thema verbreitet sich, mach mehr davon.`);
+  const sv = [...rows].sort((a, b) => b.save - a.save)[0]; if (sv.save >= 1) t.push(`Viele Speicherungen bei „${sv.title}“. Tipps und Guides als feste Serie ausbauen.`);
+  const bh = group(rows, "hook"); if (bh.length >= 2 && bh[bh.length - 1].n >= 2) t.push(`Hook-Typ „${hookLabel(bh[bh.length - 1].name)}“ läuft am schwächsten. Seltener einsetzen.`);
+  return t.length ? t : ["Solide Werte. Bleib bei 1–3 Posts am Tag und teste jede Woche einen neuen Hook-Typ."];
+}
+function hookLabel(k) { return HOOKS[k] ? HOOKS[k][0].replace("{t}", "…") : k; }
+function rivalReport() {
+  const by = {}; for (const p of S.cposts) (by[p.competitor_id] ||= []).push(p);
+  const comps = [], ranked = [];
+  for (const c of S.comps) {
+    const items = by[c.id] || [], views = items.map((p) => p.views || 0), med = median(views);
+    for (const p of items) ranked.push({ ...p, handle: c.handle, out: med ? r2(p.views / med) : 0, vpf: c.followers ? r2(p.views / c.followers) : 0, er: rate((p.likes || 0) + (p.comments || 0) + (p.shares || 0), p.views) });
+    comps.push({ ...c, n: items.length, med, max: views.length ? Math.max(...views) : 0 });
+  }
+  ranked.sort((a, b) => b.out - a.out || b.views - a.views);
+  const f = {}; for (const p of ranked) (f[p.format || "–"] ||= []).push(p.out);
+  const formats = Object.entries(f).map(([k, v]) => ({ k, n: v.length, avg: r2(v.reduce((s, x) => s + x, 0) / v.length) })).sort((a, b) => b.avg - a.avg);
+  return { comps, top: ranked.slice(0, 25), formats };
+}
+const CSV_ALIASES = { views: ["views", "video views", "aufrufe", "videoaufrufe", "wiedergaben"], likes: ["likes", "gefällt mir", "gefaellt mir"], comments: ["comments", "kommentare"], shares: ["shares", "geteilt", "teilen", "mal geteilt"], saves: ["saves", "favorites", "gespeichert", "favoriten"], avg_watch_seconds: ["average watch time", "avg watch time", "durchschnittliche wiedergabezeit"], completion_pct: ["watched full video", "completion", "vollständig angesehen"], followers_gained: ["new followers", "neue follower"], title: ["title", "video title", "titel", "beschreibung", "caption"] };
+function parseNum(v) {
+  let s = String(v || "").trim().replace(/[%s\s]/g, ""); if (!s) return 0; let mult = 1;
+  if (/k$/i.test(s)) { mult = 1e3; s = s.slice(0, -1); } else if (/m$/i.test(s)) { mult = 1e6; s = s.slice(0, -1); }
+  if (s.includes(",") && s.includes(".")) s = s.lastIndexOf(",") > s.lastIndexOf(".") ? s.replace(/\./g, "").replace(",", ".") : s.replace(/,/g, "");
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
+  else if (s.includes(",")) { const i = s.lastIndexOf(","), tail = s.slice(i + 1); s = s.slice(0, i).replace(/,/g, "") + (tail.length === 3 ? tail : "." + tail); }
+  const n = parseFloat(s); return isNaN(n) ? 0 : n * mult;
+}
+function splitLine(line, d) { const out = []; let cur = "", q = false; for (const ch of line) { if (ch === '"') q = !q; else if (ch === d && !q) { out.push(cur); cur = ""; } else cur += ch; } out.push(cur); return out.map((x) => x.trim()); }
+function parseCsv(text) {
+  const lines = (text || "").replace(/^﻿/, "").split(/\r?\n/).filter((l) => l.trim()); if (lines.length < 2) return [];
+  const d = [";", "\t", ","].sort((a, b) => lines[0].split(b).length - lines[0].split(a).length)[0];
+  const head = splitLine(lines[0], d).map((h) => h.toLowerCase()), map = {};
+  head.forEach((h, i) => { for (const [k, al] of Object.entries(CSV_ALIASES)) if (al.includes(h) && !Object.values(map).includes(k)) map[i] = k; });
+  return lines.slice(1).map((l) => { const c = splitLine(l, d), r = {}; for (const [i, k] of Object.entries(map)) r[k] = k === "title" ? c[i] || "" : (k === "avg_watch_seconds" || k === "completion_pct" ? parseNum(c[i]) : Math.round(parseNum(c[i]))); return r; }).filter((r) => r.title || r.views);
+}
+
+/* ============================================================ Speicher */
+const COLS = ["facts", "videos", "metrics", "comps", "cposts"];
+const S = { facts: [], videos: [], metrics: [], comps: [], cposts: [], settings: { ...DEFAULT_SETTINGS } };
+let DB = null, LOCAL = true;
+const store = {
+  async add(col, data) { data = { ...data, created_at: nowIso() }; if (DB) { const ref = await DB.collection(col).add(data); return ref.id; } const id = "l" + Math.random().toString(36).slice(2, 10); S[col].push({ id, ...data }); render(); return id; },
+  async update(col, id, data) { if (DB) return DB.collection(col).doc(id).update(data); const it = S[col].find((x) => x.id === id); if (it) Object.assign(it, data); render(); },
+  async del(col, id) { if (DB) return DB.collection(col).doc(id).delete(); S[col] = S[col].filter((x) => x.id !== id); render(); },
+  async settings(data) { if (DB) return DB.doc("config/settings").set(data); S.settings = data; render(); },
+};
+async function guard(p, okMsg) {
+  try { const r = await p; if (okMsg) toast(okMsg); return r; }
+  catch (e) {
+    const code = e && e.code;
+    if (code === "invalid_argument") toast("Speichern nicht erlaubt: Nur die Besitzerin oder der Besitzer und Bearbeiter können ändern.");
+    else if (code === "quota_exceeded") toast("Speicher voll. Lösche alte Einträge.");
+    else toast("Konnte nicht speichern. Versuch es gleich noch einmal.");
+    throw e;
+  }
+}
+function showNote(t) { const n = $("#note"); n.textContent = t; n.hidden = !t; }
+async function connect() {
+  const claude = window.claude;
+  const db = claude ? await claude.use("db") : null;
+  if (!db) { seedLocal(); showNote("Speichern ist hier nicht verfügbar. Du siehst Beispiel-Fakten, Änderungen gehen beim Schließen verloren. Öffne die Seite angemeldet auf claude.ai."); render(); return; }
+  DB = db; LOCAL = false;
+  const timer = setTimeout(() => showNote("Die Daten sind gerade nicht erreichbar. Was du siehst, ist vielleicht nicht aktuell."), 10000);
+  let pending = new Set([...COLS, "settings"]);
+  const done = (k, meta) => { if (!meta.fromCache) { pending.delete(k); if (!pending.size) { clearTimeout(timer); showNote(""); } } };
+  for (const col of COLS) DB.collection(col).onSnapshot((snap) => { S[col] = snap.docs.map((d) => ({ id: d.id, ...d.data() })); done(col, snap.metadata); render(); }, (e) => { clearTimeout(timer); if (e.code !== "revoked") showNote("Daten konnten nicht geladen werden."); });
+  DB.doc("config/settings").onSnapshot((d) => { S.settings = { ...DEFAULT_SETTINGS, ...(d.exists ? d.data() : {}) }; done("settings", d.metadata); render(); }, () => clearTimeout(timer));
+}
+function seedLocal() {
+  const F = [["Release am 19. November 2026", "GTA 6 erscheint am 19. November 2026 für PS5 und Xbox Series X|S.", "release", "bestaetigt", "Rockstar Newswire", "https://www.rockstargames.com/newswire"], ["Sechs Regionen offiziell", "Rockstar zeigt Vice City, Leonida Keys, Grassrivers, Port Gellhorn, Ambrosia und den Mount Kalaga National Park.", "karte", "bestaetigt", "Rockstar Games", "https://www.rockstargames.com/VI"], ["GTA Online für GTA 6", "Ein neuer Online-Modus gilt als sicher, Details und Start sind aber nicht offiziell bestätigt.", "gameplay", "geruecht", "", ""]];
+  S.facts = F.map(([title, detail, category, status, source_name, source_url], i) => ({ id: "ex" + i, title, detail, category, status, source_name, source_url, used_count: 0 }));
+}
+
+/* ============================================================ Navigation */
+let VIEW = "cockpit";
+function show(v) {
+  VIEW = v;
+  document.querySelectorAll("#tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.v === v)));
+  document.querySelectorAll(".view").forEach((s) => (s.hidden = s.id !== "v-" + v));
+  try { localStorage.setItem("gta-tab", v); } catch {}
+  render(); window.scrollTo({ top: 0 });
+}
+$("#tabs").addEventListener("click", (e) => { if (e.target.dataset.v) show(e.target.dataset.v); });
+
+/* Zweistufiges Löschen: erster Klick schärft, zweiter löscht */
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("button.del"); if (!b) return;
+  if (!b.classList.contains("armed")) { b.classList.add("armed"); b.textContent = "Sicher?"; setTimeout(() => { b.classList.remove("armed"); b.textContent = "✕"; }, 3000); return; }
+  const [col, id] = b.dataset.del.split(":");
+  if (col === "comps") for (const p of S.cposts.filter((p) => p.competitor_id === id)) await guard(store.del("cposts", p.id));
+  if (col === "videos") for (const m of S.metrics.filter((m) => m.video_id === id)) await guard(store.del("metrics", m.id));
+  await guard(store.del(col, id), "Gelöscht");
+});
+
+/* ============================================================ Rendering */
+let renderQueued = false;
+function render() { if (renderQueued) return; renderQueued = true; requestAnimationFrame(() => { renderQueued = false; renderHeader(); ({ cockpit: rCockpit, facts: rFacts, studio: rStudio, voice: () => {}, plan: rPlan, stats: rStats, rivals: rRivals, setup: rSetup }[VIEW])(); }); }
+const pill = (cls, label) => `<span class="pill ${cls}">${esc(label)}</span>`;
+const vPill = (s) => pill("v-" + s, s);
+const fPill = (s) => pill("s-" + s, FACT_STATUS[s] || s);
+const delBtn = (col, id) => `<button class="sm del" data-del="${col}:${esc(id)}" aria-label="Löschen">✕</button>`;
+function whenLabel(p) { if (!p) return "ohne Termin"; const d = new Date(p); return isNaN(d) ? p : d.toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); }
+function videoRow(v, flag, withDel) {
+  return `<div class="row"><div><div class="t">${esc(v.title)}</div><div class="s">${esc(whenLabel(v.planned_at))} · ${esc(v.series || "–")}${flag ? ` · <span class="hot">${esc(flag)}</span>` : ""}</div></div>
+  <div class="btns">${vPill(v.status || "idee")}<button class="sm" data-open="${esc(v.id)}">Öffnen</button>${v.status !== "gepostet" ? `<button class="sm" data-posted="${esc(v.id)}">Gepostet ✓</button>` : ""}${withDel ? delBtn("videos", v.id) : ""}</div></div>`;
+}
+document.addEventListener("click", async (e) => {
+  const t = e.target.closest("button"); if (!t) return;
+  if (t.dataset.open) openVideo(t.dataset.open);
+  if (t.dataset.posted) { await guard(store.update("videos", t.dataset.posted, { status: "gepostet", posted_at: nowIso() }), "Als gepostet markiert. Morgen die Zahlen eintragen."); }
+  if (t.dataset.metric) { show("stats"); $("#m-video").value = t.dataset.metric; $("#m-views").focus(); }
+});
+
+function renderHeader() {
+  $("#handle").textContent = S.settings.account_handle || "";
+  const rel = new Date((S.settings.release_date || "2026-11-19") + "T00:00"), now = new Date(), diff = rel - now;
+  if (diff > 0) { const d = Math.floor(diff / 864e5), h = Math.floor((diff % 864e5) / 36e5); $("#countdown").textContent = `GTA 6 in ${d} T ${h} Std`; }
+  else { const day = Math.floor((now - rel) / 864e5) + 1; $("#countdown").textContent = `GTA 6 ist draußen · Tag ${day}`; }
+}
+function rCockpit() {
+  const today = localIso().slice(0, 10), posted = S.videos.filter((v) => v.status === "gepostet");
+  const open = S.videos.filter((v) => v.planned_at && v.status !== "gepostet").sort((a, b) => a.planned_at.localeCompare(b.planned_at));
+  const over = open.filter((v) => v.planned_at.slice(0, 10) < today), up = open.filter((v) => v.planned_at.slice(0, 10) >= today).slice(0, 8);
+  const o = overview(), measured = new Set(S.metrics.map((m) => m.video_id));
+  const unused = S.facts.filter((f) => !f.used_count).length;
+  $("#kpis").innerHTML = [[`${posted.filter((v) => (v.posted_at || "").slice(0, 10) === today).length} / ${S.settings.posts_per_day || 2}`, "heute gepostet"], [fmt(o.total.views), "Aufrufe, gemessen"], [fmt(o.total.fol), "neue Follower, gemessen"], [`${unused} / ${S.facts.length}`, "ungenutzte Fakten"]].map(([b, s]) => `<div class="kpi"><b>${esc(b)}</b><span>${esc(s)}</span></div>`).join("");
+  $("#upcoming").innerHTML = over.map((v) => videoRow(v, "überfällig")).join("") + up.map((v) => videoRow(v, "")).join("") || `<p class="empty">Noch nichts geplant. Leg unter <b>Planung</b> die Launch-Woche an.</p>`;
+  $("#insights").innerHTML = o.tips.slice(0, 4).map((t) => `<li>${esc(t)}</li>`).join("");
+  const need = posted.filter((v) => !measured.has(v.id)).slice(0, 8);
+  $("#needm").innerHTML = need.map((v) => `<div class="row"><div class="t">${esc(v.title)}</div><div class="btns"><button class="sm" data-metric="${esc(v.id)}">Zahlen eintragen</button></div></div>`).join("") || `<p class="empty">Alles erfasst.</p>`;
+  $("#pipe").innerHTML = VIDEO_STATUS.map((s) => `<div><b>${S.videos.filter((v) => (v.status || "idee") === s).length}</b><span>${s}</span></div>`).join("");
+  if (!$("#checklist").children.length) $("#checklist").innerHTML = CHECKLIST.map((c, i) => `<li><label><input type="checkbox" id="chk${i}"> ${esc(c)}</label></li>`).join("");
+}
+
+/* ---------- Fakten */
+function rFacts() {
+  const q = $("#f-q").value.toLowerCase(), st = $("#f-filter").value;
+  const rows = S.facts.filter((f) => (!st || f.status === st) && (!q || (f.title + " " + f.detail).toLowerCase().includes(q))).sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
+  $("#fact-list").innerHTML = rows.map((f) => {
+    const u = safeUrl(f.source_url), src = u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(f.source_name || "Quelle")}</a>` : esc(f.source_name || "Quelle fehlt");
+    return `<div class="row"><div><div class="t">${esc(f.title)} ${fPill(f.status)}</div><div class="s">${esc(f.detail)}</div><div class="s">${src} · ${f.used_count || 0}× genutzt</div></div>
+    <div class="btns"><button class="sm" data-fedit="${esc(f.id)}">Bearbeiten</button><button class="sm" data-fuse="${esc(f.id)}">→ Skript</button>${delBtn("facts", f.id)}</div></div>`;
+  }).join("") || `<p class="empty">${S.facts.length ? "Keine Treffer." : "Noch keine Infos. Trag links die erste ein."}</p>`;
+}
+$("#f-q").addEventListener("input", rFacts); $("#f-filter").addEventListener("change", rFacts);
+function resetFact() { $("#fact-form").reset(); $("#f-id").value = ""; $("#fact-h").textContent = "Neue Info"; }
+$("#f-reset").addEventListener("click", resetFact);
+$("#fact-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const url = $("#f-url").value.trim(); if (url && !safeUrl(url)) return toast("Links müssen mit https:// beginnen.");
+  const d = { title: $("#f-title").value.trim(), category: $("#f-cat").value, status: $("#f-status").value, detail: $("#f-detail").value.trim(), source_name: $("#f-src").value.trim(), source_url: url };
+  const id = $("#f-id").value;
+  await guard(id ? store.update("facts", id, d) : store.add("facts", { ...d, used_count: 0 }), "Gespeichert"); resetFact();
+});
+$("#fact-list").addEventListener("click", (e) => {
+  const t = e.target.closest("button"); if (!t) return;
+  if (t.dataset.fedit) { const f = S.facts.find((x) => x.id === t.dataset.fedit); $("#f-id").value = f.id; $("#f-title").value = f.title; $("#f-cat").value = f.category || "allgemein"; $("#f-status").value = f.status; $("#f-detail").value = f.detail || ""; $("#f-src").value = f.source_name || ""; $("#f-url").value = f.source_url || ""; $("#fact-h").textContent = "Info bearbeiten"; window.scrollTo({ top: 0, behavior: "smooth" }); }
+  if (t.dataset.fuse) { const f = S.facts.find((x) => x.id === t.dataset.fuse); show("studio"); preselect(f.title, [f.id]); }
+});
+
+/* ---------- Studio */
+const picked = new Set();
+function rStudio() {
+  $("#picker").innerHTML = S.facts.filter((f) => f.status !== "widerlegt").map((f) => `<label><input type="checkbox" value="${esc(f.id)}" ${picked.has(f.id) ? "checked" : ""}> <span>${fPill(f.status)} ${esc(f.title)} <span class="muted">(${f.used_count || 0}×)</span></span></label>`).join("") || `<p class="empty">Noch keine Fakten in der Faktenbank.</p>`;
+  $("#ideas").innerHTML = ideas().map((i, n) => `<div class="row"><div><div class="t">${esc(i.text)}</div><div class="s">${esc(i.series)}</div></div><div class="btns"><button class="sm" data-idea="${n}">Nehmen</button></div></div>`).join("") || `<p class="empty">Alle Fakten genutzt. Sammle neue Infos.</p>`;
+}
+$("#picker").addEventListener("change", (e) => { if (e.target.checked) picked.add(e.target.value); else picked.delete(e.target.value); });
+function preselect(topic, ids, series, hook) { $("#s-topic").value = topic; if (series) $("#s-series").value = series; if (hook) $("#s-hook").value = hook; picked.clear(); ids.forEach((i) => picked.add(i)); rStudio(); }
+$("#ideas").addEventListener("click", (e) => { const t = e.target.closest("button"); if (!t) return; const i = ideas()[Number(t.dataset.idea)]; preselect(i.fact.title, [i.fact.id], i.series, i.hook); $("#s-form").requestSubmit(); });
+function req() { return { topic: $("#s-topic").value, facts: [...picked].map((id) => S.facts.find((f) => f.id === id)).filter(Boolean), hookType: $("#s-hook").value, series: $("#s-series").value, target: Math.max(15, Math.min(180, Number($("#s-secs").value) || 60)), part: Math.max(1, Number($("#s-part").value) || 1) }; }
+function fillVideo(v) {
+  $("#v-id").value = v.id || ""; $("#v-title").value = v.title || ""; $("#v-series").value = v.series || ""; $("#v-hook").value = v.hook || ""; $("#v-script").value = v.script || "";
+  $("#v-onscreen").value = v.onscreen || ""; $("#v-caption").value = v.caption || ""; $("#v-tags").value = v.hashtags || ""; $("#v-status").value = v.status || "skript";
+  $("#v-secs").value = v.target_seconds || 60; $("#v-planned").value = (v.planned_at || "").slice(0, 16); $("#v-url").value = v.tiktok_url || ""; $("#v-notes").value = v.notes || "";
+  $("#v-form").dataset.facts = JSON.stringify(v.fact_ids || []); $("#v-form").dataset.hook = v.hook_type || ""; updDur();
+}
+function showScriptMeta(s) {
+  $("#s-meta").innerHTML = `<span>Dauer ca. <b>${s.secs.toLocaleString("de-DE")} s</b> / Ziel ${s.target} s</span><span><b>${s.words}</b> Wörter</span>`;
+  $("#s-warn").innerHTML = s.warn.map((w) => `<li>${esc(w)}</li>`).join("");
+  $("#s-src").innerHTML = s.facts.length ? "<h3>Quellen fürs Video</h3>" + s.facts.map((f) => { const u = safeUrl(f.source_url); return `<div class="s muted">${esc(FACT_STATUS[f.status])}: ${esc(f.title)} · ${u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(f.source_name || "Link")}</a>` : esc(f.source_name || "keine Quelle")}</div>`; }).join("") : "";
+}
+$("#s-form").addEventListener("submit", (e) => {
+  e.preventDefault(); const r = req(); if (r.facts.length > 3) toast("Mehr als 3 Fakten: die ersten 3 werden genutzt.");
+  const s = buildScript(r); const keepId = $("#v-id").value && $("#v-title").value === s.title ? $("#v-id").value : "";
+  fillVideo({ id: keepId, title: s.title, series: s.series, hook: s.hook, hook_type: s.hook_type, script: s.script, onscreen: s.onscreen, caption: s.caption, hashtags: s.hashtags, fact_ids: s.fact_ids, target_seconds: s.target, status: "skript" });
+  showScriptMeta(s);
+});
+$("#s-hooks").addEventListener("click", () => {
+  const topic = $("#s-topic").value;
+  $("#hooks").innerHTML = Object.entries(HOOKS).map(([k, [, trig]]) => `<div class="hook"><span>${esc(hookText(k, topic))}</span><small>${esc(trig)}</small><button class="sm" data-hook="${k}">Nehmen</button></div>`).join("");
+});
+$("#hooks").addEventListener("click", (e) => {
+  const t = e.target.closest("button"); if (!t) return; const k = t.dataset.hook, txt = hookText(k, $("#s-topic").value);
+  $("#s-hook").value = k;
+  if ($("#v-script").value) { const old = $("#v-hook").value; $("#v-hook").value = txt; $("#v-form").dataset.hook = k; if (old && $("#v-script").value.startsWith(old)) $("#v-script").value = txt + $("#v-script").value.slice(old.length); updDur(); toast("Hook übernommen"); }
+  else $("#s-form").requestSubmit();
+});
+function updDur() { const t = $("#v-script").value; $("#v-dur").textContent = t ? `· ${words(t).length} Wörter · ca. ${speechSecs(t).toLocaleString("de-DE")} s` : ""; }
+$("#v-script").addEventListener("input", updDur);
+$("#v-new").addEventListener("click", () => { fillVideo({}); $("#s-meta").innerHTML = ""; $("#s-warn").innerHTML = ""; $("#s-src").innerHTML = ""; });
+$("#v-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const url = $("#v-url").value.trim(); if (url && !safeUrl(url)) return toast("Links müssen mit https:// beginnen.");
+  let status = $("#v-status").value; const planned = $("#v-planned").value;
+  if (planned && status === "skript") status = "geplant";
+  const d = { title: $("#v-title").value.trim(), series: $("#v-series").value.trim(), hook: $("#v-hook").value, hook_type: $("#v-form").dataset.hook || "", script: $("#v-script").value, onscreen: $("#v-onscreen").value, caption: $("#v-caption").value, hashtags: $("#v-tags").value, status, planned_at: planned, target_seconds: Number($("#v-secs").value) || 60, tiktok_url: url, notes: $("#v-notes").value, fact_ids: JSON.parse($("#v-form").dataset.facts || "[]") };
+  if (status === "gepostet") { const old = S.videos.find((v) => v.id === $("#v-id").value); d.posted_at = (old && old.posted_at) || nowIso(); }
+  const id = $("#v-id").value;
+  if (id) await guard(store.update("videos", id, d), "Gespeichert");
+  else {
+    const nid = await guard(store.add("videos", d), "Im Plan gespeichert"); $("#v-id").value = nid; $("#v-status").value = status;
+    for (const fid of d.fact_ids) { const f = S.facts.find((x) => x.id === fid); if (f) await guard(store.update("facts", fid, { used_count: (f.used_count || 0) + 1 })); }
+  }
+});
+function openVideo(id) { const v = S.videos.find((x) => x.id === id); if (!v) return; show("studio"); fillVideo(v); $("#s-topic").value = v.title.split(": ").slice(1).join(": ") || v.title; if (v.hook_type && HOOKS[v.hook_type]) $("#s-hook").value = v.hook_type; if (SERIES[v.series]) $("#s-series").value = v.series; $("#s-meta").innerHTML = ""; $("#s-warn").innerHTML = ""; $("#s-src").innerHTML = ""; }
+$("#v-voice").addEventListener("click", () => { $("#t-text").value = $("#v-script").value; show("voice"); });
+$("#v-srt").addEventListener("click", () => { const s = toSrt($("#v-script").value); if (!s) return toast("Kein Sprechtext"); copy(s); });
+$("#v-cap").addEventListener("click", () => copy($("#v-caption").value + "\n\n" + $("#v-tags").value));
+
+/* Claude schreibt das Skript */
+let SAMPLE = null, aiCtl = null;
+$("#s-ai").addEventListener("click", async () => {
+  if (!SAMPLE) return toast("Claude ist hier nicht verfügbar.");
+  const r = req(); if (!r.topic.trim()) return toast("Gib zuerst ein Thema ein.");
+  const factLines = r.facts.slice(0, 5).map((f) => `- [${FACT_STATUS[f.status]}] ${f.title}: ${f.detail} (Quelle: ${f.source_name || f.source_url || "keine"})`).join("\n") || "- (keine Fakten ausgewählt: schreib allgemein und nenne keine erfundenen Details)";
+  const prompt = `Du schreibst ein TikTok-Skript auf Deutsch in Du-Form für einen GTA-6-Account (${S.settings.account_handle}).
+Serie: ${r.series}. Thema: ${r.topic}. Länge: ${r.target} Sekunden gesprochen, also etwa ${Math.round((r.target * wpm()) / 60)} Wörter.
+Aufbau: Hook (höchstens 2 Sekunden), kurzer Kontext, 3 Punkte, Payoff, Aufforderung zum Folgen oder Kommentieren. Das Ende soll zum Anfang zurückführen.
+Regeln: Verwende NUR die Fakten unten. Gerüchte und Leaks im Sprechtext klar als solche benennen. Nichts erfinden, keine Zahlen ohne Fakt. Keine Spoiler im Hook. Kurze Sätze zum Vorlesen, keine Gedankenstriche, keine Emojis im Sprechtext. Klingt wie ein Mensch, nicht wie Werbung.
+Fakten:
+${factLines}
+
+Antworte NUR mit JSON in dieser Form:
+{"hooks":["5 verschiedene Hook-Sätze"],"script":"der komplette Sprechtext, Absätze mit \\n\\n getrennt, beginnt mit dem ersten Hook","onscreen":["Einblendung pro Abschnitt, je höchstens 6 Wörter"],"caption":"Caption mit Frage am Ende","hashtags":"4 Hashtags mit #"}`;
+  aiCtl = new AbortController(); $("#ai-box").hidden = false; $("#ai-out").textContent = "Claude denkt nach…"; $("#s-ai").disabled = true;
+  try {
+    const out = await SAMPLE.json(prompt, { signal: aiCtl.signal, onText: ({ text }) => { $("#ai-out").textContent = text; } });
+    if (!out || typeof out.script !== "string") throw { code: "invalid_json" };
+    const hooks = Array.isArray(out.hooks) ? out.hooks.map(String) : [], script = out.script.replace(/—/g, ",");
+    const onscreen = Array.isArray(out.onscreen) ? out.onscreen.map(String).join("\n") : String(out.onscreen || "");
+    fillVideo({ title: `${r.series}: ${r.topic}`.slice(0, 120), series: r.series, hook: hooks[0] || script.split("\n")[0], hook_type: r.hookType, script, onscreen, caption: String(out.caption || ""), hashtags: String(out.hashtags || hashtags(r.series, r.topic)), fact_ids: r.facts.slice(0, 5).map((f) => f.id), target_seconds: r.target, status: "skript" });
+    const s = buildScript(r); s.secs = speechSecs(script); s.words = words(script).length; s.warn = s.warn.filter((w) => !w.startsWith("Zu lang") && !w.startsWith("Eher kurz"));
+    if (s.secs > r.target * 1.1) s.warn.unshift(`Zu lang: ca. ${Math.round(s.secs)} s. Kürze einen Absatz.`);
+    showScriptMeta(s);
+    $("#hooks").innerHTML = "<h3>Hooks von Claude</h3>" + hooks.map((h) => `<div class="hook"><span>${esc(h)}</span><button class="sm" data-ahook="${esc(h)}">Nehmen</button></div>`).join("");
+    $("#ai-box").hidden = true; toast("Skript fertig. Lies es einmal laut und prüfe jeden Fakt.");
+  } catch (e) {
+    const code = e && e.code;
+    const msg = { cancelled: "", not_granted: "Claude wurde für diese Seite nicht erlaubt.", sampling_disabled: "Claude ist für dieses Konto nicht verfügbar.", rate_limited: "Zu viele Anfragen. Versuch es in ein paar Minuten noch einmal.", invalid_json: "Die Antwort war unvollständig. Versuch es noch einmal.", refused: "Claude hat diese Anfrage abgelehnt. Formuliere das Thema anders." }[code] ?? "Claude ist gerade nicht erreichbar. Versuch es gleich noch einmal.";
+    if (code === "not_granted" || code === "sampling_disabled") $("#s-ai").hidden = true;
+    $("#ai-out").textContent = msg; if (!msg) $("#ai-box").hidden = true;
+  } finally { $("#s-ai").disabled = false; }
+});
+$("#ai-stop").addEventListener("click", () => aiCtl && aiCtl.abort());
+$("#hooks").addEventListener("click", (e) => {
+  const t = e.target.closest("button[data-ahook]"); if (!t) return; const old = $("#v-hook").value, h = t.dataset.ahook;
+  $("#v-hook").value = h; if (old && $("#v-script").value.startsWith(old)) $("#v-script").value = h + $("#v-script").value.slice(old.length); updDur(); toast("Hook übernommen");
+});
+
+/* ---------- Voice-over */
+let TTS = null;
+const BROWSER_TTS = "speechSynthesis" in window;
+function voiceOptions() {
+  const opts = [];
+  if (TTS) [["buttery", "Claude: warm"], ["airy", "Claude: hell"], ["glassy", "Claude: klar"], ["rounded", "Claude: rund"]].forEach(([v, l]) => opts.push(`<option value="c:${v}">${l}</option>`));
+  if (BROWSER_TTS) speechSynthesis.getVoices().filter((v) => v.lang.startsWith("de")).forEach((v, i) => opts.push(`<option value="b:${esc(v.name)}">${esc(v.name)}</option>`));
+  $("#t-voice").innerHTML = opts.join("") || `<option value="">keine Stimme verfügbar</option>`;
+  $("#t-play").disabled = !opts.length;
+  if (!opts.length) $("#t-info").textContent = "Vorlesen ist hier nicht verfügbar. Der Teleprompter funktioniert trotzdem.";
+}
+if (BROWSER_TTS) speechSynthesis.onvoiceschanged = voiceOptions;
+$("#t-rate").addEventListener("input", (e) => ($("#t-rate-v").textContent = e.target.value));
+$("#t-play").addEventListener("click", async () => {
+  const text = $("#t-text").value.trim(); if (!text) return toast("Kein Text");
+  const v = $("#t-voice").value, r = Number($("#t-rate").value), t0 = performance.now();
+  const done = () => ($("#t-info").textContent = `Gesprochen in ${((performance.now() - t0) / 1000).toLocaleString("de-DE", { maximumFractionDigits: 1 })} s bei Tempo ${r}.`);
+  $("#t-info").textContent = "Spricht…";
+  if (v.startsWith("c:") && TTS) {
+    const chunks = text.split(/\n\s*\n/).map((s) => s.trim()).filter(Boolean).map((t) => ({ text: t.slice(0, 1900), voice: v.slice(2), rate: Math.min(1.5, r), language: "de" }));
+    try { await TTS.speak(chunks); done(); }
+    catch (e) { $("#t-info").textContent = e && e.code === "viewer_stopped" ? "" : e && e.code === "not_granted" ? "Vorlesen wurde ausgeschaltet." : e && e.code === "rate_limited" ? "Kurz warten, dann noch einmal." : ""; }
+  } else if (BROWSER_TTS) {
+    speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); const bv = speechSynthesis.getVoices().find((x) => "b:" + x.name === v);
+    if (bv) u.voice = bv; u.lang = "de-DE"; u.rate = r; u.onend = done; speechSynthesis.speak(u);
+  }
+});
+$("#t-stop").addEventListener("click", () => { if (TTS) TTS.stop(); if (BROWSER_TTS) speechSynthesis.cancel(); $("#t-info").textContent = ""; });
+let pAnim = 0;
+$("#t-prompter").addEventListener("click", () => { const t = $("#t-text").value.trim(); if (!t) return toast("Kein Text"); $("#p-secs").value = Math.max(10, Math.round(speechSecs(t))); $("#p-text").textContent = t; $("#p-text").style.fontSize = $("#p-size").value + "px"; $("#p-text").scrollTop = 0; $("#prompter").hidden = false; });
+$("#p-size").addEventListener("input", (e) => ($("#p-text").style.fontSize = e.target.value + "px"));
+$("#p-close").addEventListener("click", () => { cancelAnimationFrame(pAnim); $("#prompter").hidden = true; });
+$("#p-start").addEventListener("click", () => {
+  const el = $("#p-text"); cancelAnimationFrame(pAnim); el.scrollTop = 0;
+  const total = el.scrollHeight - el.clientHeight, dur = Number($("#p-secs").value) * 1000, t0 = performance.now() + 1500;
+  const step = (now) => { const p = Math.max(0, Math.min(1, (now - t0) / dur)); el.scrollTop = p * total; if (p < 1) pAnim = requestAnimationFrame(step); };
+  pAnim = requestAnimationFrame(step);
+});
+
+/* ---------- Planung */
+function rPlan() {
+  if (!$("#pl-start").value) { $("#pl-start").value = localIso().slice(0, 10); $("#pl-ppd").value = S.settings.posts_per_day || 2; $("#pl-times").value = S.settings.post_times || "12:30,18:00"; }
+  const st = $("#cal-filter").value, days = {};
+  for (const v of S.videos.filter((v) => !st || v.status === st)) (days[v.planned_at ? v.planned_at.slice(0, 10) : "~"] ||= []).push(v);
+  const keys = Object.keys(days).sort();
+  $("#calendar").innerHTML = keys.map((k) => `<div class="day"><h4>${k === "~" ? "ohne Termin" : esc(new Date(k + "T12:00").toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long" }))} · ${days[k].length}</h4>${days[k].sort((a, b) => (a.planned_at || "").localeCompare(b.planned_at || "")).map((v) => videoRow(v, "", true)).join("")}</div>`).join("") || `<p class="empty">Noch keine Videos. Erstell oben einen Postingplan oder speichere ein Skript.</p>`;
+}
+$("#cal-filter").addEventListener("change", rPlan);
+const slots = () => planSlots($("#pl-start").value, Number($("#pl-days").value) || 7, Number($("#pl-ppd").value) || 2, $("#pl-times").value);
+$("#pl-preview").addEventListener("click", () => { $("#pl-out").innerHTML = "<h3>Vorschau</h3>" + slots().map((s) => `<div class="row"><div><div class="t">${esc(s.wd)} ${esc(s.date.slice(8))}.${esc(s.date.slice(5, 7))}. · ${esc(s.time)} · ${esc(s.series)}</div><div class="s">${esc(s.hook)}</div></div></div>`).join(""); });
+$("#p-form").addEventListener("submit", async (e) => {
+  e.preventDefault(); const b = $("#pl-create");
+  if (!b.classList.contains("armed")) { b.classList.add("armed"); b.textContent = `Wirklich ${slots().length} Videos anlegen?`; setTimeout(() => { b.classList.remove("armed"); b.textContent = "Als Videos anlegen"; }, 4000); return; }
+  b.classList.remove("armed"); b.textContent = "Als Videos anlegen"; b.disabled = true;
+  try { const list = slots(); for (const s of list) await guard(store.add("videos", { title: `${s.series}: ${s.topic}`, series: s.series, hook_type: s.hook_type, hook: s.hook, planned_at: s.planned_at, status: "idee", script: "", target_seconds: 60, fact_ids: [] })); toast(`${list.length} Videos angelegt`); $("#pl-out").innerHTML = ""; } finally { b.disabled = false; }
+});
+
+/* ---------- Analyse */
+function rStats() {
+  const o = overview(), cur = $("#m-video").value;
+  $("#m-video").innerHTML = [...S.videos].sort((a, b) => (b.status === "gepostet") - (a.status === "gepostet") || (b.posted_at || "").localeCompare(a.posted_at || "")).map((v) => `<option value="${esc(v.id)}">${v.status === "gepostet" ? "✓ " : ""}${esc(v.title)}</option>`).join("") || `<option value="">zuerst ein Video anlegen</option>`;
+  if (cur && S.videos.some((v) => v.id === cur)) $("#m-video").value = cur;
+  const t = o.total;
+  $("#a-kpis").innerHTML = [[fmt(t.views), "Aufrufe"], [fmt(t.med), "Median pro Video"], [t.er.toLocaleString("de-DE") + " %", "Ø Interaktion"], [t.comp.toLocaleString("de-DE") + " %", "Ø komplett angesehen"]].map(([b, s]) => `<div class="kpi"><b>${esc(b)}</b><span>${esc(s)}</span></div>`).join("");
+  $("#a-ins").innerHTML = o.tips.map((x) => `<li>${esc(x)}</li>`).join("");
+  const g = (rows, lab) => rows.length ? `<div class="tbl"><table><tr><th></th><th>Videos</th><th>Median</th><th>Interaktion</th><th>Komplett</th><th>Geteilt</th></tr>${rows.map((r) => `<tr><td>${esc(lab(r.name))}</td><td>${r.n}</td><td>${fmt(r.med)}</td><td>${r.er.toLocaleString("de-DE")} %</td><td>${r.comp.toLocaleString("de-DE")} %</td><td>${r.share.toLocaleString("de-DE")} %</td></tr>`).join("")}</table></div>` : `<p class="empty">Noch keine Daten.</p>`;
+  $("#a-series").innerHTML = g(o.bySeries, (x) => x); $("#a-hooks").innerHTML = g(o.byHook, hookLabel);
+  const max = Math.max(1, ...o.rows.map((r) => r.views));
+  $("#a-table").innerHTML = o.rows.length ? `<div class="tbl"><table><tr><th>Video</th><th>Aufrufe</th><th></th><th>× Median</th><th>Interaktion</th><th>Geteilt</th><th>Gespeichert</th><th>Komplett</th><th>Follow-Rate</th></tr>${o.rows.map((r) => `<tr><td>${esc(r.title)}<div class="muted">${esc(r.series)} · nach ${r.hours} h</div></td><td>${fmt(r.views)}</td><td><div class="bar"><i data-w="${Math.round((r.views / max) * 100)}"></i></div></td><td class="${r.out >= 2 ? "hot" : ""}">${r.out.toLocaleString("de-DE")}×</td><td>${r.er.toLocaleString("de-DE")} %</td><td>${r.share.toLocaleString("de-DE")} %</td><td>${r.save.toLocaleString("de-DE")} %</td><td>${r.comp.toLocaleString("de-DE")} %</td><td>${r.follow.toLocaleString("de-DE")} %</td></tr>`).join("")}</table></div>` : `<p class="empty">Noch keine Zahlen eingetragen. Markier ein Video als gepostet und trag nach 24 Stunden die Werte ein.</p>`;
+  document.querySelectorAll("#a-table i[data-w]").forEach((i) => (i.style.width = i.dataset.w + "%"));
+}
+$("#m-form").addEventListener("submit", async (e) => {
+  e.preventDefault(); const vid = $("#m-video").value; if (!vid) return toast("Zuerst ein Video anlegen.");
+  const comp = num("#m-comp"); if (comp > 100) return toast("Komplett angesehen höchstens 100 %.");
+  await guard(store.add("metrics", { video_id: vid, hours_after: Number($("#m-hours").value), views: num("#m-views"), likes: num("#m-likes"), comments: num("#m-comments"), shares: num("#m-shares"), saves: num("#m-saves"), avg_watch_seconds: num("#m-avg"), completion_pct: comp, followers_gained: num("#m-fol") }), "Eingetragen");
+  ["#m-views", "#m-likes", "#m-comments", "#m-shares", "#m-saves", "#m-avg", "#m-comp", "#m-fol"].forEach((s) => ($(s).value = ""));
+});
+$("#csv-go").addEventListener("click", async () => {
+  const rows = parseCsv($("#csv").value); let imp = 0, made = 0;
+  for (const r of rows) {
+    const t = (r.title || "").trim().toLowerCase();
+    let v = S.videos.find((x) => x.title.trim().toLowerCase() === t) || (t && S.videos.find((x) => x.title.toLowerCase().includes(t.slice(0, 40)) || (x.caption || "").toLowerCase().includes(t.slice(0, 40))));
+    let vid = v && v.id;
+    if (!vid) { if (!$("#csv-new").checked || !t) continue; vid = await guard(store.add("videos", { title: r.title.slice(0, 200), status: "gepostet", posted_at: nowIso(), series: "", hook_type: "", target_seconds: 60, fact_ids: [] })); made++; }
+    const { title, ...m } = r; m.completion_pct = Math.min(100, m.completion_pct || 0);
+    await guard(store.add("metrics", { video_id: vid, hours_after: 24, views: 0, likes: 0, comments: 0, shares: 0, saves: 0, avg_watch_seconds: 0, followers_gained: 0, ...m })); imp++;
+  }
+  $("#csv-res").textContent = `${imp} von ${rows.length} Zeilen übernommen, ${made} Videos neu angelegt.`;
+});
+
+/* ---------- Konkurrenz */
+function rRivals() {
+  const r = rivalReport(), cur = $("#cp-comp").value;
+  $("#cp-comp").innerHTML = r.comps.map((c) => `<option value="${esc(c.id)}">${esc(c.handle)}</option>`).join("") || `<option value="">zuerst einen Account anlegen</option>`;
+  if (cur && r.comps.some((c) => c.id === cur)) $("#cp-comp").value = cur;
+  $("#c-list").innerHTML = r.comps.map((c) => `<div class="row"><div><div class="t">${esc(c.handle)} <span class="muted">${fmt(c.followers)} Follower · ${esc(c.language)}</span></div><div class="s">${c.focus ? esc(c.focus) + " · " : ""}${c.n} Videos erfasst · Median ${fmt(c.med)} · Top ${fmt(c.max)}</div>${c.notes ? `<div class="s">${esc(c.notes)}</div>` : ""}</div><div class="btns">${delBtn("comps", c.id)}</div></div>`).join("") || `<p class="empty">Leg 5–10 Accounts an: große deutsche GTA-Accounts, englische News- und Leak-Accounts und kleine, schnell wachsende.</p>`;
+  $("#c-formats").innerHTML = r.formats.map((f) => `<div class="row"><div>${esc(f.k)} <span class="muted">(${f.n})</span></div><b>${f.avg.toLocaleString("de-DE")}×</b></div>`).join("") || `<p class="empty">Noch keine Videos erfasst.</p>`;
+  $("#c-top").innerHTML = r.top.length ? `<div class="tbl"><table><tr><th>Account</th><th>Video</th><th>Format</th><th>Aufrufe</th><th>Ausreißer</th><th>Aufrufe/Follower</th><th>Interaktion</th><th></th></tr>${r.top.map((p, i) => { const u = safeUrl(p.url); return `<tr><td>${esc(p.handle)}</td><td><b>${esc(p.title)}</b>${p.hook ? `<div class="muted">„${esc(p.hook)}“</div>` : ""}</td><td>${esc(p.format)}</td><td>${fmt(p.views)}</td><td class="${p.out >= 3 ? "hot" : ""}">${p.out.toLocaleString("de-DE")}×</td><td>${p.vpf.toLocaleString("de-DE")}</td><td>${p.er.toLocaleString("de-DE")} %</td><td><div class="btns">${u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">ansehen</a>` : ""}<button class="sm" data-remake="${i}">Eigene Version</button>${delBtn("cposts", p.id)}</div></td></tr>`; }).join("")}</table></div>` : `<p class="empty">Trag Videos der Konkurrenz ein. Dann siehst du hier, was über dem Schnitt läuft.</p>`;
+}
+$("#c-form").addEventListener("submit", async (e) => {
+  e.preventDefault(); let h = $("#c-handle").value.trim(); if (!h.startsWith("@")) h = "@" + h;
+  if (S.comps.some((c) => c.handle.toLowerCase() === h.toLowerCase())) return toast("Diesen Account beobachtest du schon.");
+  await guard(store.add("comps", { handle: h, followers: num("#c-fol"), language: $("#c-lang").value, focus: $("#c-focus").value.trim(), notes: $("#c-notes").value.trim() }), "Hinzugefügt"); $("#c-form").reset();
+});
+$("#cp-form").addEventListener("submit", async (e) => {
+  e.preventDefault(); const cid = $("#cp-comp").value; if (!cid) return toast("Zuerst einen Account anlegen.");
+  const url = $("#cp-url").value.trim(); if (url && !safeUrl(url)) return toast("Links müssen mit https:// beginnen.");
+  await guard(store.add("cposts", { competitor_id: cid, title: $("#cp-title").value.trim(), hook: $("#cp-hook").value.trim(), format: $("#cp-format").value, views: num("#cp-views"), likes: num("#cp-likes"), comments: num("#cp-comments"), shares: num("#cp-shares"), posted_at: $("#cp-date").value, url }), "Gespeichert");
+  ["#cp-title", "#cp-hook", "#cp-views", "#cp-likes", "#cp-comments", "#cp-shares", "#cp-date", "#cp-url"].forEach((s) => ($(s).value = ""));
+});
+$("#c-top").addEventListener("click", (e) => {
+  const t = e.target.closest("button[data-remake]"); if (!t) return; const p = rivalReport().top[Number(t.dataset.remake)];
+  const hook = { "Leak-Analyse": "leak_realitaet", "Easter Egg": "geheimnis", "Guide/Tipps": "fehler", Theorie: "fakt_fake", Vergleich: "vergleich", "Liste/Ranking": "rang" }[p.format] || "keiner_bemerkt";
+  show("studio"); preselect(p.title, [], undefined, hook); toast("Thema übernommen. Mach es mit eigenen Fakten und eigenem Gameplay neu.");
+});
+
+/* ---------- Einstellungen */
+function rSetup() { const s = S.settings; $("#set-handle").value = s.account_handle || ""; $("#set-release").value = s.release_date || ""; $("#set-ppd").value = s.posts_per_day || 2; $("#set-times").value = s.post_times || ""; $("#set-wpm").value = s.voice_wpm || 150; }
+$("#set-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  await guard(store.settings({ account_handle: $("#set-handle").value.trim(), release_date: $("#set-release").value || "2026-11-19", posts_per_day: Math.max(1, Math.min(6, num("#set-ppd") || 2)), post_times: $("#set-times").value.trim(), voice_wpm: Math.max(90, Math.min(220, num("#set-wpm") || 150)) }), "Gespeichert");
+});
+let DL = null;
+$("#set-export").addEventListener("click", async () => {
+  const data = JSON.stringify({ exported_at: nowIso(), settings: S.settings, facts: S.facts, videos: S.videos, metrics: S.metrics, competitors: S.comps, competitor_posts: S.cposts }, null, 2);
+  if (!DL) return copy(data);
+  try { await DL.save({ filename: `gta-studio-sicherung-${localIso().slice(0, 10)}.json`, data }); toast("Sicherung gespeichert"); }
+  catch (e) { if (e && e.code !== "declined") copy(data); }
+});
+
+/* ============================================================ Start */
+$("#f-status").innerHTML = Object.entries(FACT_STATUS).map(([k, l]) => `<option value="${k}">${l}</option>`).join("");
+$("#f-filter").innerHTML += Object.entries(FACT_STATUS).map(([k, l]) => `<option value="${k}">${l}</option>`).join("");
+$("#s-series").innerHTML = Object.keys(SERIES).map((s) => `<option>${esc(s)}</option>`).join("");
+$("#s-hook").innerHTML = Object.keys(HOOKS).map((k) => `<option value="${k}">${esc(hookLabel(k))}</option>`).join("");
+$("#v-status").innerHTML = VIDEO_STATUS.map((s) => `<option>${s}</option>`).join("");
+$("#cal-filter").innerHTML += VIDEO_STATUS.map((s) => `<option>${s}</option>`).join("");
+$("#cp-format").innerHTML = FORMATS.map((f) => `<option>${esc(f)}</option>`).join("");
+$("#v-status").value = "skript";
+voiceOptions();
+try { const t = localStorage.getItem("gta-tab"); if (t && document.getElementById("v-" + t)) VIEW = t; } catch {}
+show(VIEW);
+setInterval(renderHeader, 60000);
+(async () => {
+  if (!window.claude) { await connect(); return; }
+  claude.use("sample").then((s) => { SAMPLE = s; $("#s-ai").hidden = !s; });
+  claude.use("tts").then((t) => { TTS = t; voiceOptions(); });
+  claude.use("downloads").then((d) => { DL = d; });
+  await connect();
+})();
+</script>
