@@ -44,6 +44,7 @@
 | [19](docs/19_Cloud_Server_Linux.md) | **Version 5: Vorbereitung für einen eigenen Linux-Server** |
 | [20](docs/20_Version_5_Installation_Aufgaben_Rueckfall.md) | **Version 5: Installation, Aufgabenplaner, sichere Rückkehr** |
 | [21](docs/21_Naechste_Entwicklungsschritte.md) | Nächste Entwicklungsschritte |
+| [22](docs/22_GTA_TikTok_Studio.md) | **GTA TikTok Studio: Planung, Skripte, Voice-over, Analyse, Konkurrenz** (`python3 -m gta_studio`) |
 | [PRUEFBERICHT.md](PRUEFBERICHT.md) | **Prüfbericht Version 5 für ChatGPT** (frühere: `docs/archiv/`) |
 | [AENDERUNGEN.md](AENDERUNGEN.md) | Liste aller Änderungen in Version 5 |
 
